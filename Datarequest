@@ -1,0 +1,86 @@
+Geographic Boundaries
+| Field                 | Description              | Data Type | Format                     | Notes                            |
+| --------------------- | ------------------------ | --------- | -------------------------- | -------------------------------- |
+| city_boundary         | City polygon boundary    | Vector    | Shapefile / GeoJSON / GPKG | CRS required, topology validated |
+| district_boundary     | District polygons        | Vector    | Shapefile / GeoJSON / GPKG | Include unique IDs               |
+| neighborhood_boundary | Neighborhood polygons    | Vector    | Shapefile / GeoJSON / GPKG | Include hierarchy mapping        |
+| planning_areas        | Community planning units | Vector    | Shapefile / GeoJSON / GPKG | Include official zone codes      |
+| parcels               | Individual land parcels  | Vector    | Shapefile / GeoJSON / GPKG | Ownership, area, land use type   |
+Land Use & Facilities
+| Field               | Description                                                                   | Data Type        | Format              | Notes                                                 |
+| ------------------- | ----------------------------------------------------------------------------- | ---------------- | ------------------- | ----------------------------------------------------- |
+| land_use            | Current land use for parcels                                                  | Categorical      | Shapefile / GeoJSON | Residential, commercial, industrial, green land, etc. |
+| building_footprint  | Polygon for buildings                                                         | Vector           | Shapefile / GeoJSON | Height, age, FAR included                             |
+| facilities          | Schools, hospitals, clinics, markets, parks, emergency services, transit hubs | Point            | Shapefile / GeoJSON | Include capacity, service hours, building type        |
+| historical_land_use | Land use changes 2020–2023                                                    | Vector / Tabular | Shapefile / CSV     | Include timestamps for each update                    |
+| ownership           | Parcel owner data                                                             | String / Numeric | CSV / GeoPackage    | Required for planning and redevelopment               |
+Redevelopment / Vacant Land
+| Field                    | Description                          | Data Type         | Format              | Notes                                         |
+| ------------------------ | ------------------------------------ | ----------------- | ------------------- | --------------------------------------------- |
+| redevelopment_zones      | Parcels designated for redevelopment | Polygon           | Shapefile / GeoJSON | Include legal status                          |
+| vacant_land              | Unused parcels                       | Polygon           | Shapefile / GeoJSON | Size, previous land use                       |
+| brownfield_sites         | Contaminated parcels                 | Polygon           | Shapefile / GeoJSON | Include contamination type, remediation costs |
+| historical_redevelopment | Changes 2020–2023                    | Polygon / Tabular | Shapefile / CSV     | Include project start/end dates               |
+Transportation Infrastructure
+| Field                        | Description                 | Data Type      | Format              | Notes                               |
+| ---------------------------- | --------------------------- | -------------- | ------------------- | ----------------------------------- |
+| roads                        | Road network                | Line           | Shapefile / GeoJSON | Lane count, speed limits, hierarchy |
+| sidewalks                    | Pedestrian pathways         | Line           | Shapefile / GeoJSON | Include width where available       |
+| bike_lanes                   | Bicycle network             | Line           | Shapefile / GeoJSON | Include slope/grade if available    |
+| transit_routes               | Bus/tram/subway routes      | Line           | GTFS / Shapefile    | Include stops, trips, schedules     |
+| intersection_controls        | Traffic signals, stop signs | Categorical    | Shapefile / CSV     | Include control type                |
+| historical_transport_changes | Changes 2020–2023           | Line / Tabular | Shapefile / CSV     | Include installation/closure dates  |
+Socio-Economic & Demographic Data
+| Field                | Description                        | Data Type             | Format        | Notes                             |
+| -------------------- | ---------------------------------- | --------------------- | ------------- | --------------------------------- |
+| population_density   | People per unit area               | Numeric               | CSV / Parquet | By district/neighborhood          |
+| household_income     | Median / average income            | Numeric               | CSV / Parquet | 2020–2023 yearly values           |
+| education_levels     | Distribution of highest education  | Categorical           | CSV / Parquet | Age-gender breakdown optional     |
+| employment           | Occupation by sector               | Categorical / Numeric | CSV / Parquet | Include unemployment rate         |
+| vehicle_ownership    | Vehicles per household             | Numeric               | CSV / Parquet | Historical data 2020–2023         |
+| housing_tenure       | Owned/rented households            | Categorical           | CSV / Parquet | Include % breakdown               |
+| age_distribution     | Age by cohort                      | Numeric               | CSV / Parquet | Include historical data 2020–2023 |
+| household_structure  | Family size & type                 | Categorical / Numeric | CSV / Parquet | Historical data if available      |
+| mobility_limitations | Disabilities, mobility impairments | Boolean / Categorical | CSV / Parquet | Optional detailed categories      |
+| digital_access       | Internet / broadband access        | Boolean / Numeric     | CSV / Parquet | Historical trend 2020–2023        |
+Regulatory & Planning Documents
+| Field                       | Description                   | Data Type      | Format           | Notes                           |
+| --------------------------- | ----------------------------- | -------------- | ---------------- | ------------------------------- |
+| zoning_regulations          | Land-use zoning               | Text / PDF     | PDF / DOCX / XML | Include updates from 2020–2023  |
+| comprehensive_plan          | Strategic plan                | Text / PDF     | PDF / DOCX / XML | Historical amendments 2020–2023 |
+| building_codes              | Construction regulations      | Text / PDF     | PDF / DOCX / XML | Include relevant revisions      |
+| parking_requirements        | Min/max parking               | Numeric / Text | CSV / PDF        | Historical changes 2020–2023    |
+| height_density_limits       | Max building heights, density | Numeric        | CSV / PDF        | Include historical changes      |
+| environmental_regulations   | Environmental restrictions    | Text           | PDF / DOCX / XML | Updated 2020–2023               |
+| special_district_rules      | Special planning areas        | Text           | PDF / DOCX / XML | Historical revisions included   |
+| historic_preservation_rules | Preservation areas            | Text           | PDF / DOCX / XML | Updated 2020–2023               |
+Mandatory Planning Requirements
+| Field                    | Description                     | Data Type | Format     | Notes                            |
+| ------------------------ | ------------------------------- | --------- | ---------- | -------------------------------- |
+| min_facilities           | Min # schools, hospitals, parks | Numeric   | CSV / JSON | Include 2020–2023 changes        |
+| per_capita_standards     | Per capita metrics              | Numeric   | CSV / JSON | Historical trend 2020–2023       |
+| density_limits           | Max/min population density      | Numeric   | CSV / JSON | Historical adjustments 2020–2023 |
+| accessibility_thresholds | Max distance to facilities      | Numeric   | CSV / JSON | Historical changes included      |
+Implementation Constraints
+| Field                    | Description                     | Data Type        | Format           | Notes                        |
+| ------------------------ | ------------------------------- | ---------------- | ---------------- | ---------------------------- |
+| ownership_records        | Parcel owners                   | String / Numeric | CSV / GeoPackage | Historical changes 2020–2023 |
+| construction_costs       | Cost per land use type          | Numeric          | CSV / Parquet    | Include historical changes   |
+| utility_capacity         | Water, power, sewage limits     | Numeric          | CSV / GeoPackage | Historical updates 2020–2023 |
+| capital_improvement_plan | Planned projects                | Text / Numeric   | CSV / PDF        | Historical 2020–2023         |
+| development_restrictions | Moratorium or legal constraints | Categorical      | CSV / PDF        | Historical changes included  |
+Mobility Data
+| Field              | Description        | Data Type         | Format        | Notes                                     |
+| ------------------ | ------------------ | ----------------- | ------------- | ----------------------------------------- |
+| transit_ridership  | Ridership counts   | Numeric           | CSV / Parquet | Hourly/daily counts, 2020–2023            |
+| shared_mobility    | Bike/scooter usage | Numeric           | CSV / Parquet | Include timestamps 2020–2023              |
+| on_demand_shuttles | Trips & occupancy  | Numeric           | CSV / Parquet | 2020–2023 historical data                 |
+| origin_destination | Trip OD matrices   | Numeric / Tabular | CSV / Parquet | 2020–2023                                 |
+| real_time_transit  | Real-time feed     | API / JSON        | JSON / API    | Include historical snapshots if available |
+Traffic & Safety Data
+| Field                    | Description          | Data Type             | Format        | Notes                       |
+| ------------------------ | -------------------- | --------------------- | ------------- | --------------------------- |
+| traffic_volume           | Vehicle counts       | Numeric               | CSV / Parquet | Hourly, 2020–2023           |
+| travel_speed             | Avg speed by segment | Numeric               | CSV / Parquet | Historical trends 2020–2023 |
+| crash_incidents          | Accident logs        | Tabular               | CSV / Parquet | Include severity, timestamp |
+| intersection_performance | LOS, delays          | Numeric / Categorical | CSV / Parquet | 2020–2023 historical data   |
