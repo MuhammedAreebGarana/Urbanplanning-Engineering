@@ -1,0 +1,1459 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanPolicy — Policy Simulation Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0A0F1A;
+  --ink2:#1E2740;
+  --ink3:#2D3A5C;
+  --surface:#F4F6FB;
+  --surface2:#E8ECF5;
+  --surface3:#D4DAF0;
+  --accent:#2563EB;
+  --accent2:#1D4ED8;
+  --accentg:#10B981;
+  --accentr:#EF4444;
+  --accenty:#F59E0B;
+  --border:rgba(37,99,235,0.15);
+  --border2:rgba(37,99,235,0.3);
+  --glow:rgba(37,99,235,0.2);
+  --font-head:'Syne',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+
+html, body {
+  font-family: var(--font-body);
+  background: var(--ink);
+  color: #fff;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─────────────────────────────
+   TOP NAV BAR
+───────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 52px;
+  background: rgba(10,15,26,0.98);
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+  z-index: 1000;
+  position: relative;
+}
+
+.logo {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.logo-text span { color: var(--accent); }
+
+.nav-pills { display: flex; gap: 4px; }
+
+.npill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: rgba(255,255,255,0.5);
+  background: transparent;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.npill.active,
+.npill:hover {
+  border-color: var(--border2);
+  color: #fff;
+  background: rgba(37,99,235,0.1);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accentg);
+  animation: pulse 2s infinite;
+}
+
+.status-txt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.05em;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ─────────────────────────────
+   MAIN WORKSPACE LAYOUT
+───────────────────────────── */
+.workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────
+   LEFT PANEL — Policy Library
+───────────────────────────── */
+.left-panel {
+  width: 280px;
+  flex-shrink: 0;
+  background: rgba(10,15,26,0.95);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section { border-bottom: 1px solid var(--border); }
+
+.panel-head {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.panel-head-txt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+}
+
+.panel-head-ico {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+}
+
+.panel-body { padding: 8px 12px 12px; }
+
+/* Scrollable left panel */
+.left-scroll { flex: 1; overflow-y: auto; }
+.left-scroll::-webkit-scrollbar { width: 3px; }
+.left-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* Policy category labels */
+.policy-cat { margin-bottom: 8px; }
+
+.policy-cat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.3);
+  padding: 4px 4px;
+  text-transform: uppercase;
+}
+
+/* Policy cards */
+.policy-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.policy-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+}
+
+.policy-card.green::before  { background: var(--accentg); }
+.policy-card.blue::before   { background: var(--accent); }
+.policy-card.amber::before  { background: var(--accenty); }
+.policy-card.red::before    { background: var(--accentr); }
+
+.policy-card:hover {
+  background: rgba(37,99,235,0.08);
+  border-color: var(--border2);
+}
+
+.policy-card.enacted {
+  background: rgba(16,185,129,0.06);
+  border-color: rgba(16,185,129,0.2);
+}
+
+.pc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pc-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.3;
+}
+
+.pc-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.badge-enacted {
+  background: rgba(16,185,129,0.15);
+  color: #10B981;
+  border: 1px solid rgba(16,185,129,0.3);
+}
+
+.badge-draft {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.pc-meta {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.02em;
+}
+
+.enact-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(37,99,235,0.3);
+  background: rgba(37,99,235,0.1);
+  color: rgba(255,255,255,0.7);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.enact-btn:hover {
+  background: rgba(37,99,235,0.25);
+  border-color: rgba(37,99,235,0.6);
+  color: #fff;
+}
+
+.enact-btn.active-btn {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.4);
+  color: #10B981;
+}
+
+/* Layer controls */
+.layer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.layer-row:hover { background: rgba(255,255,255,0.04); }
+
+.layer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.layer-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+}
+
+.toggle {
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.toggle.on {
+  background: rgba(37,99,235,0.6);
+  border-color: rgba(37,99,235,0.8);
+}
+
+.toggle::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(14px); }
+
+/* ─────────────────────────────
+   CENTER MAP
+───────────────────────────── */
+.map-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map HUD — Top Left */
+.map-hud-tl {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-box {
+  background: rgba(10,15,26,0.9);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  backdrop-filter: blur(8px);
+}
+
+.hud-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.hud-metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: baseline;
+}
+
+.hud-val {
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.hud-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* Map HUD — Top Right */
+.map-hud-tr {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-sel {
+  display: flex;
+  gap: 4px;
+  background: rgba(10,15,26,0.9);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.mode-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.simulation-badge {
+  background: rgba(10,15,26,0.9);
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  animation: pulse 1.5s infinite;
+}
+
+.sim-txt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #10B981;
+  letter-spacing: 0.05em;
+}
+
+/* ─────────────────────────────
+   RIGHT PANEL — Simulation
+───────────────────────────── */
+.right-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: rgba(10,15,26,0.95);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rp-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rp-title {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 2px;
+}
+
+.rp-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.05em;
+}
+
+.rp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.rp-body::-webkit-scrollbar { width: 3px; }
+.rp-body::-webkit-scrollbar-track { background: transparent; }
+.rp-body::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 2px;
+}
+
+/* Active policy detail card */
+.active-policy-card {
+  background: rgba(16,185,129,0.05);
+  border: 1px solid rgba(16,185,129,0.15);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.apc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.apc-name {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.apc-status {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  background: rgba(16,185,129,0.15);
+  color: #10B981;
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 3px;
+  padding: 2px 7px;
+  letter-spacing: 0.08em;
+}
+
+/* Factor grid */
+.factor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.factor-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+
+.fb-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.fb-val {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.fb-val.up      { color: #10B981; }
+.fb-val.down    { color: #EF4444; }
+.fb-val.neutral { color: var(--accent); }
+
+.fb-trend {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  margin-top: 1px;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Implementation todo list */
+.todo-section { margin-bottom: 12px; }
+
+.todo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.todo-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.todo-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: rgba(37,99,235,0.15);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.todo-item:hover {
+  background: rgba(37,99,235,0.06);
+  border-color: var(--border);
+}
+
+.todo-item.done { opacity: 0.5; }
+
+.todo-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  transition: all 0.2s;
+}
+
+.todo-item.done .todo-check {
+  background: var(--accentg);
+  border-color: var(--accentg);
+  color: #fff;
+}
+
+.todo-content { flex: 1; }
+
+.todo-txt {
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.4;
+}
+
+.todo-item.done .todo-txt {
+  text-decoration: line-through;
+  color: rgba(255,255,255,0.3);
+}
+
+.todo-meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.25);
+  margin-top: 2px;
+}
+
+.todo-priority {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pri-high {
+  background: rgba(239,68,68,0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+.pri-mid {
+  background: rgba(245,158,11,0.12);
+  color: #F59E0B;
+  border: 1px solid rgba(245,158,11,0.2);
+}
+
+.pri-low {
+  background: rgba(37,99,235,0.12);
+  color: #60A5FA;
+  border: 1px solid rgba(37,99,235,0.2);
+}
+
+/* LLM output section */
+.llm-section {
+  background: rgba(37,99,235,0.04);
+  border: 1px solid rgba(37,99,235,0.12);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.llm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.llm-ico {
+  width: 22px;
+  height: 22px;
+  background: rgba(37,99,235,0.15);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.llm-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.llm-output {
+  font-size: 11px;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.7;
+  font-style: italic;
+}
+
+.llm-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 11px;
+  background: var(--accent);
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50%  { opacity: 1; }
+  51%,100% { opacity: 0; }
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-ico {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.empty-txt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.05em;
+  line-height: 1.8;
+}
+
+/* ─────────────────────────────
+   BOTTOM STATS BAR
+───────────────────────────── */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  height: 36px;
+  flex-shrink: 0;
+  background: rgba(10,15,26,0.98);
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-right: 1px solid var(--border);
+}
+
+.stat-item:last-child { border-right: none; }
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.06em;
+}
+
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.7);
+}
+
+.stat-val.green { color: #10B981; }
+.stat-val.blue  { color: #60A5FA; }
+.stat-val.amber { color: #F59E0B; }
+
+/* ─────────────────────────────
+   NOTIFICATION TOAST
+───────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10,15,26,0.96);
+  border: 1px solid rgba(16,185,129,0.4);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #10B981;
+  letter-spacing: 0.04em;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     TOP BAR
+═══════════════════════════════ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">⬡</div>
+    <div class="logo-text">
+      URBAN<span>POLICY</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:400;letter-spacing:0.05em">
+        / policy simulation
+      </span>
+    </div>
+  </div>
+
+  <div class="nav-pills">
+    <div class="npill active">simulation</div>
+    <div class="npill">analytics</div>
+    <div class="npill">scenarios</div>
+    <div class="npill">reports</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot"></div>
+    <div class="status-txt">LLM ENGINE ONLINE · OSM CONNECTED</div>
+    <div style="width:1px;height:16px;background:var(--border);margin:0 4px"></div>
+    <div class="status-txt" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MAIN WORKSPACE
+═══════════════════════════════ -->
+<div class="workspace">
+
+  <!-- ─────────────────────────
+       LEFT PANEL: Policy Library
+  ───────────────────────── -->
+  <div class="left-panel">
+
+    <div class="panel-section">
+      <div class="panel-head">
+        <span class="panel-head-txt">Policy Library</span>
+        <span class="panel-head-ico">▼</span>
+      </div>
+    </div>
+
+    <div class="left-scroll">
+      <div class="panel-body">
+
+        <!-- Land Use -->
+        <div class="policy-cat">
+          <div class="policy-cat-label">Land Use</div>
+
+          <div class="policy-card green" id="pc-1" onclick="enactPolicy(1)">
+            <div class="pc-top">
+              <div class="pc-name">Mixed-Use Zoning Reform</div>
+              <div class="pc-badge badge-draft" id="badge-1">DRAFT</div>
+            </div>
+            <div class="pc-meta">ZONES: CBD · INNER RING · +4 more</div>
+            <button class="enact-btn" id="btn-1">▶ ENACT POLICY</button>
+          </div>
+
+          <div class="policy-card blue" id="pc-2" onclick="enactPolicy(2)">
+            <div class="pc-top">
+              <div class="pc-name">Green Corridor Mandate</div>
+              <div class="pc-badge badge-draft" id="badge-2">DRAFT</div>
+            </div>
+            <div class="pc-meta">ZONES: WATERFRONT · PARKS BELT</div>
+            <button class="enact-btn" id="btn-2">▶ ENACT POLICY</button>
+          </div>
+        </div>
+
+        <!-- Transport -->
+        <div class="policy-cat">
+          <div class="policy-cat-label">Transport</div>
+
+          <div class="policy-card amber" id="pc-3" onclick="enactPolicy(3)">
+            <div class="pc-top">
+              <div class="pc-name">Congestion Pricing Zone</div>
+              <div class="pc-badge badge-draft" id="badge-3">DRAFT</div>
+            </div>
+            <div class="pc-meta">ZONES: DOWNTOWN · COMMERCIAL</div>
+            <button class="enact-btn" id="btn-3">▶ ENACT POLICY</button>
+          </div>
+
+          <div class="policy-card blue" id="pc-4" onclick="enactPolicy(4)">
+            <div class="pc-top">
+              <div class="pc-name">Transit-Oriented Development</div>
+              <div class="pc-badge badge-draft" id="badge-4">DRAFT</div>
+            </div>
+            <div class="pc-meta">NODES: 12 TRANSIT CORRIDORS</div>
+            <button class="enact-btn" id="btn-4">▶ ENACT POLICY</button>
+          </div>
+        </div>
+
+        <!-- Housing -->
+        <div class="policy-cat">
+          <div class="policy-cat-label">Housing</div>
+
+          <div class="policy-card red" id="pc-5" onclick="enactPolicy(5)">
+            <div class="pc-top">
+              <div class="pc-name">Affordable Housing Overlay</div>
+              <div class="pc-badge badge-draft" id="badge-5">DRAFT</div>
+            </div>
+            <div class="pc-meta">TARGET: 30% BELOW MARKET RATE</div>
+            <button class="enact-btn" id="btn-5">▶ ENACT POLICY</button>
+          </div>
+        </div>
+
+      </div><!-- /panel-body -->
+    </div><!-- /left-scroll -->
+
+    <!-- Layer Controls -->
+    <div class="panel-section" style="flex-shrink:0">
+      <div class="panel-head">
+        <span class="panel-head-txt">Map Layers</span>
+      </div>
+      <div class="panel-body">
+        <div class="layer-row">
+          <div class="layer-left">
+            <div class="layer-dot" style="background:#10B981"></div>
+            <div class="layer-name">Green Spaces</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="layer-row">
+          <div class="layer-left">
+            <div class="layer-dot" style="background:#F59E0B"></div>
+            <div class="layer-name">Congestion Heat</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="layer-row">
+          <div class="layer-left">
+            <div class="layer-dot" style="background:#2563EB"></div>
+            <div class="layer-name">Zoning Districts</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="layer-row">
+          <div class="layer-left">
+            <div class="layer-dot" style="background:#EF4444"></div>
+            <div class="layer-name">Density Overlay</div>
+          </div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="layer-row">
+          <div class="layer-left">
+            <div class="layer-dot" style="background:#8B5CF6"></div>
+            <div class="layer-name">Transport Nodes</div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- ─────────────────────────
+       CENTER: OSM MAP
+  ───────────────────────── -->
+  <div class="map-area">
+    <div id="map"></div>
+
+    <!-- HUD Top-Left -->
+    <div class="map-hud-tl">
+      <div class="hud-box">
+        <div class="hud-title">City Overview</div>
+        <div class="hud-metric">
+          <div>
+            <div class="hud-val" id="hud-pop">4.2M</div>
+            <div class="hud-sub">population</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch"></div>
+          <div>
+            <div class="hud-val" id="hud-pol" style="color:#10B981">0</div>
+            <div class="hud-sub">active policies</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD Top-Right -->
+    <div class="map-hud-tr">
+      <div class="mode-sel">
+        <button class="mode-btn active" onclick="setMode(this,'select')">select</button>
+        <button class="mode-btn" onclick="setMode(this,'draw')">draw zone</button>
+        <button class="mode-btn" onclick="setMode(this,'measure')">measure</button>
+      </div>
+      <div class="simulation-badge">
+        <div class="sim-dot"></div>
+        <div class="sim-txt">SIMULATION RUNNING · T+<span id="simtime">00:00:00</span></div>
+      </div>
+    </div>
+  </div><!-- /map-area -->
+
+  <!-- ─────────────────────────
+       RIGHT PANEL: Simulation Engine
+  ───────────────────────── -->
+  <div class="right-panel">
+    <div class="rp-head">
+      <div class="rp-title">Simulation Engine</div>
+      <div class="rp-sub">POWERED BY URBANLLM v2.4 · FINETUNED ON 2.1B URBAN PARAMS</div>
+    </div>
+    <div class="rp-body" id="rp-body">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-ico">◈</div>
+        <div class="empty-txt">
+          SELECT A POLICY FROM<br>
+          THE LIBRARY TO BEGIN<br>
+          IMPACT SIMULATION
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /workspace -->
+
+<!-- ═══════════════════════════════
+     BOTTOM STATS BAR
+═══════════════════════════════ -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-label">WALKABILITY</span>
+    <span class="stat-val green" id="s-walk">72</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">AIR QUALITY INDEX</span>
+    <span class="stat-val blue" id="s-aqi">84</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">HOUSING AFFORDABILITY</span>
+    <span class="stat-val amber" id="s-haf">41%</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">TRANSIT COVERAGE</span>
+    <span class="stat-val blue" id="s-tc">67%</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">CARBON INTENSITY</span>
+    <span class="stat-val green" id="s-co">-12%</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">ENACTED POLICIES</span>
+    <span class="stat-val green" id="s-ep">0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">OSM BUILD</span>
+    <span class="stat-val">r24.03.28</span>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════ -->
+<script>
+/* ── Clock ── */
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    n.toTimeString().slice(0, 8) + '  UTC+0';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ── Simulation timer ── */
+let simSecs = 0;
+setInterval(() => {
+  simSecs++;
+  const h = Math.floor(simSecs / 3600).toString().padStart(2, '0');
+  const m = Math.floor((simSecs % 3600) / 60).toString().padStart(2, '0');
+  const s = (simSecs % 60).toString().padStart(2, '0');
+  document.getElementById('simtime').textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+/* ── Leaflet / OSM Map ── */
+const map = L.map('map', { zoomControl: false }).setView([24.86, 67.01], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 19
+}).addTo(map);
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+/* ── Policy zone coordinate data ── */
+const policyZones = {
+  1: {
+    color: '#10B981',
+    zones: [
+      [[51.515, -0.11],  [51.52,  -0.09],  [51.518, -0.085], [51.513, -0.095]],
+      [[51.508, -0.075], [51.513, -0.065], [51.51,  -0.06],  [51.505, -0.072]]
+    ]
+  },
+  2: {
+    color: '#3B82F6',
+    zones: [
+      [[51.5,   -0.12],  [51.503, -0.115], [51.501, -0.108], [51.498, -0.113]],
+      [[51.512, -0.13],  [51.516, -0.125], [51.514, -0.118], [51.51,  -0.123]]
+    ]
+  },
+  3: {
+    color: '#F59E0B',
+    zones: [
+      [[51.505, -0.095], [51.51,  -0.085], [51.508, -0.08],  [51.503, -0.09]]
+    ]
+  },
+  4: {
+    color: '#8B5CF6',
+    zones: [
+      [[51.518, -0.1],   [51.522, -0.095], [51.52,  -0.088], [51.516, -0.093]],
+      [[51.498, -0.08],  [51.502, -0.074], [51.5,   -0.068], [51.496, -0.074]]
+    ]
+  },
+  5: {
+    color: '#EF4444',
+    zones: [
+      [[51.504, -0.11],  [51.508, -0.1],   [51.506, -0.095], [51.502, -0.105]]
+    ]
+  }
+};
+
+/* ── Policy data: factors, todos, LLM analysis ── */
+const policyData = {
+  1: {
+    name: 'Mixed-Use Zoning Reform',
+    factors: {
+      walkscore:    { label: 'Walk Score',         val: '+18pts', dir: 'up',      trend: '↑ from 72 → 90' },
+      density:      { label: 'Population Density', val: '+34%',  dir: 'up',      trend: 'Projected by 2030' },
+      retail:       { label: 'Retail Activity',    val: '+$2.1B',dir: 'up',      trend: 'Annual economic lift' },
+      displacement: { label: 'Displacement Risk',  val: 'Med',   dir: 'neutral', trend: 'Requires monitoring' }
+    },
+    todos: [
+      { txt: 'Rezone parcels R-1A through R-4C to MX-3 classification',          pri: 'high', done: false, zone: 'CBD + Inner Ring' },
+      { txt: 'Update building height limits: 6 → 18 floors in transition zones', pri: 'high', done: false, zone: 'Zoning code Sec.12' },
+      { txt: 'Mandate ground-floor active uses along primary corridors',          pri: 'mid',  done: true,  zone: 'Design guidelines' },
+      { txt: 'Commission community impact assessment for 4 affected wards',       pri: 'mid',  done: false, zone: 'Ward 3,5,7,11' },
+      { txt: 'Establish inclusionary housing requirement at 20% AMI',            pri: 'low',  done: false, zone: 'All affected parcels' },
+      { txt: 'Update GIS cadastral layer with new zone boundaries',               pri: 'high', done: false, zone: 'OSM sync required' }
+    ],
+    llm: 'Simulation projects a net positive outcome for district-level walkability and economic activity. High-density mixed-use development along the primary corridor will generate approximately 8,400 new units, with a projected 22% reduction in vehicle miles travelled within the zone. Displacement risk for lower-income residents remains a critical concern — recommend triggering an anti-displacement overlay as a companion policy.'
+  },
+  2: {
+    name: 'Green Corridor Mandate',
+    factors: {
+      green: { label: 'Green Cover',    val: '+28%',  dir: 'up', trend: 'Urban canopy expansion' },
+      aqi:   { label: 'Air Quality',    val: '+14pts',dir: 'up', trend: 'AQI 84 → 98 projected' },
+      flood: { label: 'Flood Resilience',val: 'High', dir: 'up', trend: '15yr storm buffer' },
+      temp:  { label: 'Urban Heat',     val: '-2.4°C',dir: 'up', trend: 'SSP mitigation effect' }
+    },
+    todos: [
+      { txt: 'Designate 6.2km waterfront as protected green corridor (GC-1)', pri: 'high', done: false, zone: 'Waterfront zone' },
+      { txt: 'Plant 4,200 native tree species across 18 identified parcels',  pri: 'high', done: false, zone: 'Phase 1 parcels' },
+      { txt: 'Install permeable paving on 12 targeted intersections',         pri: 'mid',  done: false, zone: 'Traffic dept approval' },
+      { txt: 'Create bioswale network connecting parks to river edge',        pri: 'mid',  done: true,  zone: 'Engineering review ✓' },
+      { txt: 'Restrict hard-surface development within 50m of corridor',      pri: 'low',  done: false, zone: 'Planning code update' }
+    ],
+    llm: 'Green corridor implementation will generate measurable urban cooling effects, particularly during peak summer heat events. The corridor acts as a natural climate buffer reducing the urban heat island differential by an estimated 2.4°C. Biodiversity co-benefits are significant — modelling suggests habitat connectivity for 14 species of migratory birds. Carbon sequestration potential: 840 tonnes CO₂e annually at full canopy maturity.'
+  },
+  3: {
+    name: 'Congestion Pricing Zone',
+    factors: {
+      traffic:  { label: 'Traffic Reduction', val: '-31%',  dir: 'up',      trend: 'Peak-hour vehicle flow' },
+      revenue:  { label: 'Annual Revenue',    val: '£420M', dir: 'up',      trend: 'Infrastructure fund' },
+      transit:  { label: 'Transit Ridership', val: '+22%',  dir: 'up',      trend: 'Demand shift effect' },
+      equity:   { label: 'Equity Impact',     val: 'Med',   dir: 'neutral', trend: 'Low-income exemptions' }
+    },
+    todos: [
+      { txt: 'Install 87 ANPR cameras at zone boundary entry points',               pri: 'high', done: false, zone: 'Procurement required' },
+      { txt: 'Set pricing tiers: £5 off-peak / £15 peak / £25 heavy vehicle',      pri: 'high', done: true,  zone: 'TfL board approved' },
+      { txt: 'Launch low-income resident exemption scheme (£0 / day)',              pri: 'mid',  done: false, zone: 'Revenue authority' },
+      { txt: 'Integrate payment gateway with existing Oyster/contactless',          pri: 'high', done: false, zone: 'IT integration' },
+      { txt: 'Commission public consultation in 3 adjacent boroughs',               pri: 'mid',  done: false, zone: '8-week period' },
+      { txt: 'Update real-time OSM traffic data feeds for simulation',              pri: 'low',  done: false, zone: 'Data partnership' }
+    ],
+    llm: 'Congestion pricing simulation indicates a 31% reduction in peak-hour vehicle entries within the charging zone. Modal shift modelling shows transit ridership on affected corridors will increase by approximately 22%, requiring a fleet capacity uplift of 180 buses to absorb demand. Revenue generation at £420M annually will fully fund the Phase 2 transit expansion within 3.2 years. Equity analysis flags a moderate regressive impact — low-income exemption scheme is critical to policy legitimacy.'
+  },
+  4: {
+    name: 'Transit-Oriented Development',
+    factors: {
+      units:   { label: 'Housing Units', val: '+12,400', dir: 'up', trend: 'Within 800m of nodes' },
+      commute: { label: 'Avg Commute',   val: '-18min',  dir: 'up', trend: 'Projected reduction' },
+      vmt:     { label: 'VMT Reduction', val: '-24%',    dir: 'up', trend: 'Vehicle miles travelled' },
+      jobs:    { label: 'Job Access',    val: '+340K',   dir: 'up', trend: '30-min transit shed' }
+    },
+    todos: [
+      { txt: 'Upzone 12 transit node catchment areas to mixed-use high density',    pri: 'high', done: false, zone: '12 TOD nodes' },
+      { txt: 'Require minimum 4.5 FAR within 400m of major transit stops',          pri: 'high', done: false, zone: 'Floor area ratio code' },
+      { txt: 'Mandate 1,000 affordable units per node (30% AMI cap)',               pri: 'mid',  done: false, zone: 'Inclusionary req.' },
+      { txt: 'Restrict surface parking: max 0.5 spaces per residential unit',       pri: 'mid',  done: true,  zone: 'Parking code update ✓' },
+      { txt: 'Fast-track planning approval for TOD-compliant developments',         pri: 'low',  done: false, zone: 'Planning streamlining' }
+    ],
+    llm: 'Transit-oriented development around 12 major nodes creates a catalytic effect for compact urban growth. Simulation shows that within a 10-year horizon, TOD upzoning will deliver 12,400 new housing units, reduce average commute times by 18 minutes, and increase the 30-minute transit job-access shed by 340,000 positions. The compound effect of parking restrictions and density bonuses accelerates modal shift beyond what congestion pricing achieves in isolation — recommend enacting both policies simultaneously for amplified VMT reductions.'
+  },
+  5: {
+    name: 'Affordable Housing Overlay',
+    factors: {
+      units: { label: 'Affordable Units',  val: '+6,200', dir: 'up',      trend: 'By 2028 target' },
+      ami:   { label: 'Income Target',     val: '≤80% AMI',dir: 'neutral',trend: 'Area median income' },
+      cost:  { label: 'Subsidy Required',  val: '£240M',  dir: 'down',    trend: 'Public investment' },
+      disp:  { label: 'Displacement Risk', val: 'Low',    dir: 'up',      trend: 'With overlay active' }
+    },
+    todos: [
+      { txt: 'Designate 34 parcels as affordable housing priority zones',           pri: 'high', done: false, zone: 'Site assembly phase' },
+      { txt: 'Issue 6,200-unit affordable housing bond at 3.2% interest',           pri: 'high', done: false, zone: 'Finance committee' },
+      { txt: 'Mandate 30% affordable set-aside for all developments >50 units',     pri: 'mid',  done: false, zone: 'Developer agreements' },
+      { txt: 'Establish community land trust for 800 permanently affordable units', pri: 'mid',  done: false, zone: 'CLT legal structure' },
+      { txt: 'Anti-displacement fund: £12M for existing low-income residents',      pri: 'high', done: true,  zone: 'Budget allocated ✓' }
+    ],
+    llm: 'Affordable housing overlay will create 6,200 units serving households at or below 80% AMI. Without the overlay, displacement modelling projects 14,000 low-income residents displaced by 2030 under baseline growth scenarios. The £240M public investment generates a social return of approximately £1.8B through avoided homelessness costs, improved health outcomes, and economic productivity. Recommend pairing with Mixed-Use Zoning Reform to ensure density gains include meaningful affordable share.'
+  }
+};
+
+/* ── State ── */
+const activePolygons = {};
+const enactedPolicies = new Set();
+let enactedCount = 0;
+let currentPolicy = null;
+
+/* ── Mode selector ── */
+function setMode(btn, mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ── Toast notification ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ── Animate a stat counter ── */
+function animVal(elId, from, to, suffix, neg = false) {
+  const el = document.getElementById(elId);
+  const dur = 1500, steps = 30, inc = (to - from) / steps;
+  let cur = from, step = 0;
+  const iv = setInterval(() => {
+    cur += inc;
+    step++;
+    if (step >= steps) { cur = to; clearInterval(iv); }
+    el.textContent = (neg ? '-' : '') + Math.round(Math.abs(cur)) + suffix;
+  }, dur / steps);
+}
+
+/* ── Update bottom stats on enact ── */
+function updateStats(id) {
+  if (id === 1) { animVal('s-walk', 72, 82, ''); }
+  if (id === 2) { animVal('s-aqi', 84, 94, ''); animVal('s-co', 12, 18, '%', true); }
+  if (id === 3) { animVal('s-tc', 67, 78, '%'); }
+  if (id === 5) { animVal('s-haf', 41, 54, '%'); }
+}
+
+/* ── Enact / select a policy ── */
+function enactPolicy(id) {
+  const p = policyData[id];
+  const alreadyEnacted = enactedPolicies.has(id);
+
+  if (!alreadyEnacted) {
+    enactedPolicies.add(id);
+    enactedCount++;
+
+    // Update left panel badges
+    document.getElementById('badge-' + id).textContent = 'ENACTED';
+    document.getElementById('badge-' + id).className = 'pc-badge badge-enacted';
+    document.getElementById('btn-' + id).textContent = '✓ ENACTED';
+    document.getElementById('btn-' + id).className = 'enact-btn active-btn';
+    document.getElementById('pc-' + id).classList.add('enacted');
+
+    // Update stat counters
+    document.getElementById('s-ep').textContent = enactedCount;
+    document.getElementById('hud-pol').textContent = enactedCount;
+
+    // Draw zone polygons on the OSM map
+    const zd = policyZones[id];
+    if (zd) {
+      const polys = zd.zones.map(coords =>
+        L.polygon(coords, {
+          color: zd.color,
+          fillColor: zd.color,
+          fillOpacity: 0.18,
+          weight: 2,
+          dashArray: '6 4'
+        })
+        .addTo(map)
+        .bindPopup(
+          `<b style="font-family:monospace;font-size:11px">${p.name}</b>
+           <br><span style="font-size:10px;opacity:0.7">Status: ENACTED</span>`
+        )
+      );
+      activePolygons[id] = polys;
+    }
+
+    updateStats(id);
+    showToast(`✓ Policy enacted: ${p.name}`);
+  }
+
+  currentPolicy = id;
+  showPolicyDetail(id);
+}
+
+/* ── Render right panel for selected policy ── */
+function showPolicyDetail(id) {
+  const p = policyData[id];
+  const enacted = enactedPolicies.has(id);
+
+  const factorBoxes = Object.values(p.factors).map(f => `
+    <div class="factor-box">
+      <div class="fb-label">${f.label}</div>
+      <div class="fb-val ${f.dir}">${f.val}</div>
+      <div class="fb-trend">${f.trend}</div>
+    </div>
+  `).join('');
+
+  const doneCnt = p.todos.filter(t => t.done).length;
+
+  const todos = p.todos.map((t, i) => `
+    <div class="todo-item ${t.done ? 'done' : ''}" onclick="toggleTodo(${id}, ${i})">
+      <div class="todo-check">${t.done ? '✓' : ''}</div>
+      <div class="todo-content">
+        <div class="todo-txt">${t.txt}</div>
+        <div class="todo-meta">${t.zone}</div>
+      </div>
+      <div class="todo-priority ${t.pri === 'high' ? 'pri-high' : t.pri === 'mid' ? 'pri-mid' : 'pri-low'}">
+        ${t.pri.toUpperCase()}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('rp-body').innerHTML = `
+    <div class="active-policy-card">
+      <div class="apc-header">
+        <div class="apc-name">${p.name}</div>
+        <div class="apc-status">${enacted ? 'ENACTED' : 'DRAFT'}</div>
+      </div>
+      <div class="factor-grid">${factorBoxes}</div>
+    </div>
+
+    <div class="todo-section">
+      <div class="todo-head">
+        <div class="todo-title">Implementation Tasks</div>
+        <div class="todo-count">${doneCnt}/${p.todos.length} DONE</div>
+      </div>
+      ${todos}
+    </div>
+
+    <div class="llm-section">
+      <div class="llm-head">
+        <div class="llm-ico">◈</div>
+        <div class="llm-label">UrbanLLM Simulation Analysis</div>
+      </div>
+      <div class="llm-output" id="llm-out"></div>
+    </div>
+  `;
+
+  typeLLM(p.llm);
+}
+
+/* ── Typewriter animation for LLM output ── */
+function typeLLM(text) {
+  const el = document.getElementById('llm-out');
+  if (!el) return;
+  el.innerHTML = '<span class="llm-cursor"></span>';
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i >= text.length) { clearInterval(iv); return; }
+    el.innerHTML = text.slice(0, ++i) + '<span class="llm-cursor"></span>';
+    el.parentElement.scrollTop = el.parentElement.scrollHeight;
+  }, 18);
+}
+
+/* ── Toggle todo item ── */
+function toggleTodo(policyId, idx) {
+  policyData[policyId].todos[idx].done = !policyData[policyId].todos[idx].done;
+  showPolicyDetail(policyId);
+}
+
+/* ── Auto-preview first policy on load ── */
+setTimeout(() => showPolicyDetail(1), 800);
+</script>
+</body>
+</html> 
