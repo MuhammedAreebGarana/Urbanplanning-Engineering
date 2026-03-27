@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanPolicy — Policy Simulation Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0A0F1A;--ink2:#1E2740;--ink3:#2D3A5C;
+  --surface:rgba(255,255,255,0.04);--surface2:rgba(255,255,255,0.07);
+  --accent:#2563EB;--accentg:#10B981;--accentr:#EF4444;--accenty:#F59E0B;--accentp:#8B5CF6;
+  --border:rgba(37,99,235,0.15);--border2:rgba(37,99,235,0.28);
+  --font-head:'Syne',sans-serif;--font-body:'Inter',sans-serif;--font-mono:'DM Mono',monospace;
+}
+html,body{font-family:var(--font-body);background:var(--ink);color:#fff;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+
+/* ─── TOPBAR ─── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:rgba(8,12,22,0.99);border-bottom:1px solid var(--border2);flex-shrink:0;z-index:1000;position:relative}
+.logo{font-family:var(--font-head);font-size:16px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:9px}
+.logo-mark{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.logo-sub{font-size:10px;color:rgba(255,255,255,0.22);font-weight:400;letter-spacing:0.05em;font-family:var(--font-mono)}
+.nav-tabs{display:flex;gap:2px}
+.ntab{font-family:var(--font-mono);font-size:10px;padding:6px 14px;border-radius:5px;border:1px solid transparent;cursor:pointer;color:rgba(255,255,255,0.4);background:transparent;transition:all 0.18s;letter-spacing:0.04em;text-transform:uppercase}
+.ntab:hover{color:rgba(255,255,255,0.75);border-color:var(--border)}
+.ntab.active{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.12)}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.live-badge{display:flex;align-items:center;gap:6px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:5px;padding:4px 10px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#10B981;animation:pulse 2s infinite}
+.live-txt{font-family:var(--font-mono);font-size:9px;color:#10B981;letter-spacing:0.07em}
+.clock-txt{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:0.05em}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+/* ─── WORKSPACE ─── */
+.workspace{flex:1;overflow:hidden;position:relative}
+.page{display:none;height:100%;width:100%}
+.page.active{display:flex}
+
+/* ══════════════════════════════
+   SIMULATION PAGE
+══════════════════════════════ */
+.sim-layout{display:flex;width:100%;height:100%}
+
+/* Left panel */
+.left-panel{width:272px;flex-shrink:0;background:rgba(8,12,22,0.97);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.lp-section{border-bottom:1px solid var(--border)}
+.lp-head{padding:11px 15px;display:flex;align-items:center;justify-content:space-between}
+.lp-head-txt{font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;color:rgba(255,255,255,0.35);text-transform:uppercase}
+.lp-scroll{flex:1;overflow-y:auto}
+.lp-scroll::-webkit-scrollbar{width:2px}
+.lp-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+.lp-body{padding:8px 11px 12px}
+.pol-cat-label{font-family:var(--font-mono);font-size:8px;letter-spacing:0.1em;color:rgba(255,255,255,0.25);text-transform:uppercase;padding:6px 3px 3px}
+.pol-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:9px 11px;margin-bottom:5px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+.pol-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px}
+.pol-card.green::before{background:#10B981}.pol-card.blue::before{background:#2563EB}
+.pol-card.amber::before{background:#F59E0B}.pol-card.red::before{background:#EF4444}
+.pol-card.purple::before{background:#8B5CF6}
+.pol-card:hover{background:rgba(37,99,235,0.07);border-color:var(--border)}
+.pol-card.enacted{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.18)}
+.pc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.pc-name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.82);line-height:1.35}
+.pc-badge{font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:3px;flex-shrink:0;margin-top:1px}
+.b-draft{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.07)}
+.b-enacted{background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.28)}
+.pc-meta{margin-top:3px;font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.25)}
+.enact-btn{width:100%;margin-top:7px;padding:5px;border-radius:4px;border:1px solid rgba(37,99,235,0.28);background:rgba(37,99,235,0.08);color:rgba(255,255,255,0.6);font-family:var(--font-mono);font-size:8px;cursor:pointer;letter-spacing:0.04em;transition:all 0.2s}
+.enact-btn:hover{background:rgba(37,99,235,0.22);border-color:rgba(37,99,235,0.55);color:#fff}
+.enact-btn.done{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.35);color:#10B981}
+.layer-row{display:flex;align-items:center;justify-content:space-between;padding:5px 3px;border-radius:5px;cursor:pointer;transition:background 0.15s}
+.layer-row:hover{background:rgba(255,255,255,0.03)}
+.layer-left{display:flex;align-items:center;gap:7px}
+.ldot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.lname{font-size:11px;color:rgba(255,255,255,0.6)}
+.toggle{width:28px;height:15px;border-radius:8px;background:rgba(255,255,255,0.1);position:relative;cursor:pointer;transition:background 0.2s;border:1px solid rgba(255,255,255,0.08);flex-shrink:0}
+.toggle.on{background:rgba(37,99,235,0.55);border-color:rgba(37,99,235,0.7)}
+.toggle::after{content:'';width:9px;height:9px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform 0.2s}
+.toggle.on::after{transform:translateX(13px)}
+
+/* Map center */
+.map-area{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.map-hud-tl{position:absolute;top:14px;left:14px;z-index:500;display:flex;flex-direction:column;gap:7px}
+.map-hud-tr{position:absolute;top:14px;right:14px;z-index:500;display:flex;flex-direction:column;gap:7px}
+.hud-box{background:rgba(8,12,22,0.88);border:1px solid var(--border2);border-radius:8px;padding:9px 13px;backdrop-filter:blur(10px)}
+.hud-title{font-family:var(--font-mono);font-size:8px;letter-spacing:0.1em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:5px}
+.hud-row{display:flex;gap:14px;align-items:baseline}
+.hud-val{font-family:var(--font-head);font-size:19px;font-weight:700}
+.hud-sub{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.35);margin-top:1px}
+.mode-sel{display:flex;gap:3px;background:rgba(8,12,22,0.88);border:1px solid var(--border2);border-radius:7px;padding:3px;backdrop-filter:blur(10px)}
+.mode-btn{font-family:var(--font-mono);font-size:8px;padding:4px 9px;border-radius:4px;border:none;background:transparent;color:rgba(255,255,255,0.38);cursor:pointer;letter-spacing:0.05em;transition:all 0.15s;text-transform:uppercase}
+.mode-btn.active{background:var(--accent);color:#fff}
+.sim-badge{background:rgba(8,12,22,0.88);border:1px solid rgba(16,185,129,0.28);border-radius:7px;padding:7px 12px;display:flex;align-items:center;gap:7px;backdrop-filter:blur(10px)}
+.sim-dot{width:5px;height:5px;border-radius:50%;background:#10B981;animation:pulse 1.5s infinite}
+.sim-txt{font-family:var(--font-mono);font-size:9px;color:#10B981;letter-spacing:0.05em}
+
+/* Right panel - simulation engine */
+.right-panel{width:292px;flex-shrink:0;background:rgba(8,12,22,0.97);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-head{padding:13px 15px;border-bottom:1px solid var(--border);flex-shrink:0}
+.rp-title{font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:-0.3px;margin-bottom:1px}
+.rp-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.05em}
+.rp-body{flex:1;overflow-y:auto;padding:11px}
+.rp-body::-webkit-scrollbar{width:2px}
+.rp-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:1px}
+.apc-wrap{background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.14);border-radius:9px;padding:12px;margin-bottom:10px}
+.apc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.apc-name{font-family:var(--font-head);font-size:12px;font-weight:700}
+.apc-status{font-family:var(--font-mono);font-size:7px;background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.28);border-radius:3px;padding:2px 6px;letter-spacing:0.08em}
+.factor-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.fbox{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:7px 9px}
+.fb-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px}
+.fb-val{font-family:var(--font-head);font-size:15px;font-weight:700}
+.fb-val.up{color:#10B981}.fb-val.down{color:#EF4444}.fb-val.neutral{color:#60A5FA}
+.fb-trend{font-family:var(--font-mono);font-size:8px;margin-top:1px;color:rgba(255,255,255,0.28)}
+.todo-sec{margin-bottom:10px}
+.todo-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.todo-title{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.35);letter-spacing:0.08em;text-transform:uppercase}
+.todo-ct{font-family:var(--font-mono);font-size:8px;background:rgba(37,99,235,0.12);color:#60A5FA;border-radius:3px;padding:1px 5px}
+.todo-item{display:flex;align-items:flex-start;gap:8px;padding:7px 9px;border-radius:6px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.04);margin-bottom:4px;cursor:pointer;transition:all 0.15s}
+.todo-item:hover{background:rgba(37,99,235,0.06);border-color:var(--border)}
+.todo-item.done{opacity:0.45}
+.todo-chk{width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,0.18);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:8px;transition:all 0.2s}
+.todo-item.done .todo-chk{background:#10B981;border-color:#10B981;color:#fff}
+.todo-txt{font-size:10px;color:rgba(255,255,255,0.72);line-height:1.4;flex:1}
+.todo-item.done .todo-txt{text-decoration:line-through;color:rgba(255,255,255,0.28)}
+.todo-meta{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.22);margin-top:2px}
+.todo-pri{font-family:var(--font-mono);font-size:7px;padding:1px 4px;border-radius:2px;flex-shrink:0;margin-top:2px}
+.pri-h{background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.18)}
+.pri-m{background:rgba(245,158,11,0.1);color:#F59E0B;border:1px solid rgba(245,158,11,0.18)}
+.pri-l{background:rgba(37,99,235,0.1);color:#60A5FA;border:1px solid rgba(37,99,235,0.18)}
+.llm-sec{background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.1);border-radius:9px;padding:11px}
+.llm-hdr{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.llm-ico{width:20px;height:20px;background:rgba(37,99,235,0.14);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px}
+.llm-label{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.35);letter-spacing:0.08em;text-transform:uppercase}
+.llm-out{font-size:10px;color:rgba(255,255,255,0.6);line-height:1.75;font-style:italic;min-height:40px}
+.llm-cursor{display:inline-block;width:5px;height:10px;background:var(--accent);margin-left:1px;animation:blink 1s infinite}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+.empty-state{text-align:center;padding:36px 16px}
+.empty-ico{font-size:28px;opacity:0.22;margin-bottom:10px}
+.empty-txt{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:0.05em;line-height:1.9}
+
+/* ─── LLM CHAT PANEL (bottom of right panel) ─── */
+.chat-section{border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;max-height:220px}
+.chat-head{padding:8px 13px;display:flex;align-items:center;gap:7px;flex-shrink:0}
+.chat-ico{width:16px;height:16px;background:rgba(139,92,246,0.2);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px}
+.chat-label{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.35);letter-spacing:0.07em;text-transform:uppercase;flex:1}
+.chat-model{font-family:var(--font-mono);font-size:7px;color:rgba(139,92,246,0.7);background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);border-radius:3px;padding:1px 5px}
+.chat-msgs{flex:1;overflow-y:auto;padding:0 11px 6px;display:flex;flex-direction:column;gap:6px}
+.chat-msgs::-webkit-scrollbar{width:2px}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+.chat-msg{font-size:10px;line-height:1.55;padding:6px 9px;border-radius:6px;max-width:100%}
+.chat-msg.user{background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.18);color:rgba(255,255,255,0.75);align-self:flex-end}
+.chat-msg.ai{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.65);align-self:flex-start}
+.chat-msg.thinking{color:rgba(255,255,255,0.3);font-style:italic;font-family:var(--font-mono);font-size:9px;border:none;background:transparent;padding:2px 0}
+.chat-input-row{display:flex;gap:5px;padding:6px 11px 10px;flex-shrink:0}
+.chat-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:5px;padding:6px 9px;font-family:var(--font-mono);font-size:9px;color:#fff;outline:none;transition:border 0.15s}
+.chat-input:focus{border-color:rgba(37,99,235,0.45)}
+.chat-input::placeholder{color:rgba(255,255,255,0.2)}
+.chat-send{background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.35);border-radius:5px;padding:5px 10px;font-family:var(--font-mono);font-size:8px;color:#60A5FA;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.chat-send:hover{background:rgba(37,99,235,0.35);color:#fff}
+.chat-send:disabled{opacity:0.4;cursor:not-allowed}
+.api-key-bar{padding:7px 11px;background:rgba(245,158,11,0.05);border-bottom:1px solid rgba(245,158,11,0.12);display:flex;gap:5px;align-items:center;flex-shrink:0}
+.api-key-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(245,158,11,0.2);border-radius:4px;padding:4px 8px;font-family:var(--font-mono);font-size:8px;color:#F59E0B;outline:none}
+.api-key-input::placeholder{color:rgba(245,158,11,0.35)}
+.api-key-btn{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:4px 8px;font-family:var(--font-mono);font-size:8px;color:#F59E0B;cursor:pointer;white-space:nowrap;transition:all 0.15s}
+.api-key-btn:hover{background:rgba(245,158,11,0.22)}
+
+/* ─── STATS BAR ─── */
+.stats-bar{display:flex;align-items:center;border-top:1px solid var(--border);height:34px;flex-shrink:0;background:rgba(6,10,20,0.99)}
+.stat-item{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 10px;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-label{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.25);letter-spacing:0.06em}
+.stat-val{font-family:var(--font-mono);font-size:10px;font-weight:500}
+.sv-g{color:#10B981}.sv-b{color:#60A5FA}.sv-a{color:#F59E0B}
+
+/* ═══════════════════════════════
+   ANALYTICS PAGE
+═══════════════════════════════ */
+.analytics-page{flex-direction:column;background:var(--ink);overflow-y:auto}
+.page-inner{padding:24px 28px;flex:1;min-height:100%}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.section-title{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.section-sub{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.07em;margin-top:3px}
+.page-controls{display:flex;gap:6px}
+.ctrl-btn{font-family:var(--font-mono);font-size:9px;padding:5px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em}
+.ctrl-btn:hover,.ctrl-btn.active{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.1)}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
+.kpi-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-g::after{background:#10B981}.kpi-b::after{background:#2563EB}.kpi-a::after{background:#F59E0B}.kpi-r::after{background:#EF4444}.kpi-p::after{background:#8B5CF6}.kpi-t::after{background:#06B6D4}
+.kpi-label{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:7px}
+.kpi-val{font-family:var(--font-head);font-size:22px;font-weight:800;line-height:1}
+.kpi-change{font-family:var(--font-mono);font-size:9px;margin-top:5px}
+.kpi-up{color:#10B981}.kpi-down{color:#EF4444}.kpi-flat{color:rgba(255,255,255,0.3)}
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 20px}
+.chart-title{font-family:var(--font-head);font-size:13px;font-weight:700;margin-bottom:3px}
+.chart-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;margin-bottom:16px}
+.chart-wrap{position:relative;height:180px}
+.charts-grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
+.mini-chart-wrap{position:relative;height:120px}
+.policy-table{width:100%;border-collapse:collapse;font-size:11px}
+.policy-table th{font-family:var(--font-mono);font-size:8px;letter-spacing:0.08em;color:rgba(255,255,255,0.3);text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06)}
+.policy-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.7);vertical-align:middle}
+.policy-table tr:hover td{background:rgba(255,255,255,0.02)}
+.impact-bar-wrap{width:90px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden}
+.impact-bar{height:100%;border-radius:3px;transition:width 0.5s}
+.tag{font-family:var(--font-mono);font-size:7px;padding:2px 6px;border-radius:3px;display:inline-block}
+.tag-g{background:rgba(16,185,129,0.12);color:#10B981;border:1px solid rgba(16,185,129,0.22)}
+.tag-b{background:rgba(37,99,235,0.12);color:#60A5FA;border:1px solid rgba(37,99,235,0.22)}
+.tag-a{background:rgba(245,158,11,0.12);color:#F59E0B;border:1px solid rgba(245,158,11,0.22)}
+.tag-r{background:rgba(239,68,68,0.12);color:#EF4444;border:1px solid rgba(239,68,68,0.22)}
+
+/* ═══════════════════════════════
+   SCENARIOS PAGE
+═══════════════════════════════ */
+.scenarios-page{flex-direction:column;overflow-y:auto}
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:24px}
+.sc-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.2s}
+.sc-card:hover{border-color:var(--border2);background:rgba(37,99,235,0.05)}
+.sc-card.running{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.03)}
+.sc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.sc-card.sc-blue::before{background:linear-gradient(90deg,#2563EB,#60A5FA)}
+.sc-card.sc-green::before{background:linear-gradient(90deg,#10B981,#34D399)}
+.sc-card.sc-amber::before{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.sc-card.sc-red::before{background:linear-gradient(90deg,#EF4444,#F87171)}
+.sc-card.sc-purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.sc-card.sc-teal::before{background:linear-gradient(90deg,#06B6D4,#67E8F9)}
+.sc-name{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:4px}
+.sc-desc{font-size:11px;color:rgba(255,255,255,0.45);line-height:1.55;margin-bottom:14px}
+.sc-meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.sc-tag{font-family:var(--font-mono);font-size:8px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.4)}
+.sc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.sc-metric{background:rgba(255,255,255,0.03);border-radius:6px;padding:7px 10px}
+.sc-metric-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px}
+.sc-metric-val{font-family:var(--font-head);font-size:14px;font-weight:700}
+.sc-run-btn{width:100%;padding:8px;border-radius:6px;border:1px solid rgba(37,99,235,0.3);background:rgba(37,99,235,0.08);color:rgba(255,255,255,0.65);font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em}
+.sc-run-btn:hover{background:rgba(37,99,235,0.2);border-color:rgba(37,99,235,0.5);color:#fff}
+.sc-run-btn.running{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.35);color:#10B981;animation:border-pulse 1.5s infinite}
+@keyframes border-pulse{0%,100%{border-color:rgba(16,185,129,0.35)}50%{border-color:rgba(16,185,129,0.7)}}
+.progress-bar{width:100%;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:#10B981;transition:width 0.3s;width:0%}
+.sc-form-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:22px;margin-bottom:20px}
+.sc-form-title{font-family:var(--font-head);font-size:15px;font-weight:700;margin-bottom:4px}
+.sc-form-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.06em;margin-bottom:18px}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:0.07em;text-transform:uppercase}
+.form-input,.form-select{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:6px;padding:8px 11px;font-family:var(--font-mono);font-size:10px;color:#fff;outline:none;transition:border 0.15s;width:100%}
+.form-input:focus,.form-select:focus{border-color:rgba(37,99,235,0.5)}
+.form-input::placeholder{color:rgba(255,255,255,0.2)}
+.form-select option{background:#1E2740;color:#fff}
+.form-textarea{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:6px;padding:9px 11px;font-family:var(--font-mono);font-size:10px;color:#fff;outline:none;transition:border 0.15s;width:100%;resize:vertical;min-height:80px}
+.form-textarea:focus{border-color:rgba(37,99,235,0.5)}
+.form-textarea::placeholder{color:rgba(255,255,255,0.2)}
+.form-actions{display:flex;gap:8px;justify-content:flex-end}
+.btn-primary{padding:9px 20px;border-radius:6px;border:1px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.2);color:#fff;font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em}
+.btn-primary:hover{background:rgba(37,99,235,0.35);border-color:rgba(37,99,235,0.7)}
+.btn-secondary{padding:9px 16px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.5);font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em}
+.btn-secondary:hover{border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.8)}
+.slider-group{display:flex;flex-direction:column;gap:5px}
+.slider-row{display:flex;align-items:center;gap:10px}
+.form-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none}
+.form-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer}
+.slider-val{font-family:var(--font-mono);font-size:10px;color:#60A5FA;min-width:30px;text-align:right}
+
+/* ═══════════════════════════════
+   REPORTS PAGE
+═══════════════════════════════ */
+.reports-page{flex-direction:column;overflow-y:auto}
+.report-gen-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:22px;margin-bottom:20px}
+.report-form-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:14px;margin-bottom:16px;align-items:end}
+.report-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.report-item{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:14px;transition:all 0.2s;cursor:pointer}
+.report-item:hover{border-color:var(--border);background:rgba(37,99,235,0.04)}
+.report-ico{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ri-blue{background:rgba(37,99,235,0.12)}.ri-green{background:rgba(16,185,129,0.12)}.ri-amber{background:rgba(245,158,11,0.12)}.ri-purple{background:rgba(139,92,246,0.12)}
+.report-content{flex:1}
+.report-name{font-family:var(--font-head);font-size:13px;font-weight:700;margin-bottom:2px}
+.report-meta{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.05em;display:flex;gap:12px}
+.report-actions{display:flex;gap:6px;flex-shrink:0}
+.r-btn{font-family:var(--font-mono);font-size:8px;padding:5px 11px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em}
+.r-btn:hover{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.1)}
+.r-btn.primary{border-color:rgba(37,99,235,0.35);background:rgba(37,99,235,0.1);color:#60A5FA}
+.report-status{font-family:var(--font-mono);font-size:8px;padding:3px 8px;border-radius:3px;flex-shrink:0}
+.rs-ready{background:rgba(16,185,129,0.1);color:#10B981;border:1px solid rgba(16,185,129,0.22)}
+.rs-gen{background:rgba(245,158,11,0.1);color:#F59E0B;border:1px solid rgba(245,158,11,0.22)}
+.rs-draft{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.35);border:1px solid rgba(255,255,255,0.08)}
+.report-preview{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:22px}
+.report-preview-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.rph-left{}
+.rph-title{font-family:var(--font-head);font-size:18px;font-weight:800;letter-spacing:-0.3px;margin-bottom:3px}
+.rph-meta{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.05em}
+.rph-right{display:flex;gap:7px;align-items:center}
+.report-content-preview{display:grid;grid-template-columns:3fr 2fr;gap:20px}
+.rcp-section{margin-bottom:14px}
+.rcp-sec-title{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.rcp-text{font-size:11px;color:rgba(255,255,255,0.55);line-height:1.75}
+.rcp-metric-list{display:flex;flex-direction:column;gap:7px}
+.rcp-metric{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:rgba(255,255,255,0.025);border-radius:6px;border:1px solid rgba(255,255,255,0.05)}
+.rcp-metric-name{font-size:11px;color:rgba(255,255,255,0.6)}
+.rcp-metric-val{font-family:var(--font-head);font-size:13px;font-weight:700}
+.llm-report-btn{width:100%;padding:10px;border-radius:7px;border:1px solid rgba(37,99,235,0.3);background:rgba(37,99,235,0.08);color:rgba(255,255,255,0.65);font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;margin-top:10px}
+.llm-report-btn:hover{background:rgba(37,99,235,0.2);border-color:rgba(37,99,235,0.5);color:#fff}
+.llm-report-out{margin-top:10px;padding:12px;background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.1);border-radius:7px;font-size:10px;color:rgba(255,255,255,0.6);line-height:1.75;font-style:italic;min-height:40px;display:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);background:rgba(8,12,22,0.96);border:1px solid rgba(16,185,129,0.38);border-radius:7px;padding:9px 18px;font-family:var(--font-mono);font-size:10px;color:#10B981;letter-spacing:0.04em;z-index:3000;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">⬡</div>
+    <div>
+      <span style="color:var(--accent)">URBAN</span>POLICY
+      <div class="logo-sub">Goverment of Pakistan</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="ntab active" onclick="showPage('simulation',this)">Simulation</div>
+    <div class="ntab" onclick="showPage('analytics',this)">Analytics</div>
+    <div class="ntab" onclick="showPage('scenarios',this)">Scenarios</div>
+    <div class="ntab" onclick="showPage('reports',this)">Reports</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <div class="live-txt">LIVE · OSM + LLM</div>
+    </div>
+    <div class="clock-txt" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     PAGE 1: SIMULATION
+═══════════════════════════════════ -->
+<div class="page active" id="page-simulation">
+<div class="sim-layout">
+
+  <!-- LEFT: Policy Library -->
+  <div class="left-panel">
+    <div class="lp-section">
+      <div class="lp-head">
+        <span class="lp-head-txt">Policy Library</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--accent)" id="enacted-ct">0 ENACTED</span>
+      </div>
+    </div>
+    <div class="lp-scroll">
+      <div class="lp-body">
+        <div class="pol-cat-label">Land Use</div>
+        <div class="pol-card green" id="pc-1" onclick="selectPolicy(1)">
+          <div class="pc-top"><div class="pc-name">Mixed-Use Zoning Reform</div><div class="pc-badge b-draft" id="badge-1">DRAFT</div></div>
+          <div class="pc-meta">ZONES: CBD · INNER RING · +4</div>
+          <button class="enact-btn" id="btn-1" onclick="enactPolicy(event,1)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-card blue" id="pc-2" onclick="selectPolicy(2)">
+          <div class="pc-top"><div class="pc-name">Green Corridor Mandate</div><div class="pc-badge b-draft" id="badge-2">DRAFT</div></div>
+          <div class="pc-meta">ZONES: WATERFRONT · PARKS BELT</div>
+          <button class="enact-btn" id="btn-2" onclick="enactPolicy(event,2)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-cat-label">Transport</div>
+        <div class="pol-card amber" id="pc-3" onclick="selectPolicy(3)">
+          <div class="pc-top"><div class="pc-name">Congestion Pricing Zone</div><div class="pc-badge b-draft" id="badge-3">DRAFT</div></div>
+          <div class="pc-meta">ZONES: DOWNTOWN · COMMERCIAL</div>
+          <button class="enact-btn" id="btn-3" onclick="enactPolicy(event,3)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-card blue" id="pc-4" onclick="selectPolicy(4)">
+          <div class="pc-top"><div class="pc-name">Transit-Oriented Dev.</div><div class="pc-badge b-draft" id="badge-4">DRAFT</div></div>
+          <div class="pc-meta">NODES: 12 TRANSIT CORRIDORS</div>
+          <button class="enact-btn" id="btn-4" onclick="enactPolicy(event,4)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-cat-label">Housing</div>
+        <div class="pol-card red" id="pc-5" onclick="selectPolicy(5)">
+          <div class="pc-top"><div class="pc-name">Affordable Housing Overlay</div><div class="pc-badge b-draft" id="badge-5">DRAFT</div></div>
+          <div class="pc-meta">TARGET: 30% BELOW MARKET RATE</div>
+          <button class="enact-btn" id="btn-5" onclick="enactPolicy(event,5)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-cat-label">Environment</div>
+        <div class="pol-card purple" id="pc-6" onclick="selectPolicy(6)">
+          <div class="pc-top"><div class="pc-name">Net-Zero Carbon District</div><div class="pc-badge b-draft" id="badge-6">DRAFT</div></div>
+          <div class="pc-meta">COVERAGE: ENTIRE METRO AREA</div>
+          <button class="enact-btn" id="btn-6" onclick="enactPolicy(event,6)">▶ ENACT POLICY</button>
+        </div>
+      </div>
+    </div>
+    <!-- Layer controls -->
+    <div class="lp-section" style="flex-shrink:0">
+      <div class="lp-head"><span class="lp-head-txt">Map Layers</span></div>
+      <div class="lp-body">
+        <div class="layer-row"><div class="layer-left"><div class="ldot" style="background:#10B981"></div><div class="lname">Green Spaces</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="layer-row"><div class="layer-left"><div class="ldot" style="background:#F59E0B"></div><div class="lname">Congestion Heat</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="layer-row"><div class="layer-left"><div class="ldot" style="background:#2563EB"></div><div class="lname">Zoning Districts</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="layer-row"><div class="layer-left"><div class="ldot" style="background:#EF4444"></div><div class="lname">Density Overlay</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        <div class="layer-row"><div class="layer-left"><div class="ldot" style="background:#8B5CF6"></div><div class="lname">Transport Nodes</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: OSM Map -->
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="map-hud-tl">
+      <div class="hud-box">
+        <div class="hud-title">City Overview</div>
+        <div class="hud-row">
+          <div><div class="hud-val" id="hud-pop">4.2M</div><div class="hud-sub">population</div></div>
+          <div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch"></div>
+          <div><div class="hud-val" style="color:#10B981" id="hud-pol">0</div><div class="hud-sub">policies active</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="map-hud-tr">
+      <div class="mode-sel">
+        <button class="mode-btn active" onclick="setMode(this)">select</button>
+        <button class="mode-btn" onclick="setMode(this)">draw zone</button>
+        <button class="mode-btn" onclick="setMode(this)">measure</button>
+      </div>
+      <div class="sim-badge">
+        <div class="sim-dot"></div>
+        <div class="sim-txt">SIM RUNNING · T+<span id="simtime">00:00:00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Simulation Engine + LLM Chat -->
+  <div class="right-panel">
+    <div class="rp-head">
+      <div class="rp-title">Simulation Engine</div>
+      <div class="rp-sub">URBANLLM v2.4 · CLAUDE SONNET BACKEND</div>
+    </div>
+    <div class="rp-body" id="rp-body">
+      <div class="empty-state">
+        <div class="empty-ico">◈</div>
+        <div class="empty-txt">SELECT A POLICY TO<br>BEGIN SIMULATION</div>
+      </div>
+    </div>
+    <!-- LLM Chat -->
+    <div class="chat-section">
+      <div class="api-key-bar">
+        <input class="api-key-input" id="api-key-input" type="password" placeholder="Paste Anthropic API key to enable live LLM...">
+        <button class="api-key-btn" onclick="saveApiKey()">CONNECT</button>
+      </div>
+      <div class="chat-head">
+        <div class="chat-ico">◈</div>
+        <div class="chat-label">Urban AI Advisor</div>
+        <div class="chat-model" id="model-badge">OFFLINE</div>
+      </div>
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-msg ai">Hello! I'm your Urban Planning AI advisor. Enact a policy and ask me to analyse it, or ask any urban planning question.</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Ask about urban policy impact..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" id="chat-send-btn" onclick="sendChat()">SEND ↗</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sim-layout -->
+</div>
+
+<!-- ═══════════════════════════════════
+     PAGE 2: ANALYTICS
+═══════════════════════════════════ -->
+<div class="page" id="page-analytics">
+<div class="analytics-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Analytics Dashboard</div>
+      <div class="section-sub">REAL-TIME URBAN PERFORMANCE METRICS · LAST UPDATED JUST NOW</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn active">6M</button>
+      <button class="ctrl-btn">1Y</button>
+      <button class="ctrl-btn">5Y</button>
+      <button class="ctrl-btn">BASELINE</button>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-g"><div class="kpi-label">Walkability Score</div><div class="kpi-val">74</div><div class="kpi-change kpi-up">↑ +8.2% vs baseline</div></div>
+    <div class="kpi-card kpi-b"><div class="kpi-label">Transit Coverage</div><div class="kpi-val">69%</div><div class="kpi-change kpi-up">↑ +4.1pp</div></div>
+    <div class="kpi-card kpi-a"><div class="kpi-label">Housing Affordability</div><div class="kpi-val">42%</div><div class="kpi-change kpi-down">↓ -1.3pp pressure</div></div>
+    <div class="kpi-card kpi-r"><div class="kpi-label">Carbon Intensity</div><div class="kpi-val">-14%</div><div class="kpi-change kpi-up">↑ Improving</div></div>
+    <div class="kpi-card kpi-p"><div class="kpi-label">Air Quality Index</div><div class="kpi-val">86</div><div class="kpi-change kpi-up">↑ +2pts this quarter</div></div>
+    <div class="kpi-card kpi-t"><div class="kpi-label">Enacted Policies</div><div class="kpi-val" id="a-ep">0</div><div class="kpi-change kpi-flat">— Active simulations</div></div>
+  </div>
+
+  <!-- Main charts row -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">City Metrics — 12 Month Trend</div>
+      <div class="chart-sub">WALKABILITY · AQI · TRANSIT COVERAGE · AFFORDABILITY</div>
+      <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Policy Impact Distribution</div>
+      <div class="chart-sub">SECTOR BREAKDOWN BY ENACTED POLICY</div>
+      <div class="chart-wrap"><canvas id="chart-donut"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Secondary charts row -->
+  <div class="charts-grid2">
+    <div class="chart-card">
+      <div class="chart-title">Carbon Emissions Reduction</div>
+      <div class="chart-sub">CO₂ TONNES / YEAR · PROJECTED</div>
+      <div class="mini-chart-wrap"><canvas id="chart-carbon"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Housing Unit Pipeline</div>
+      <div class="chart-sub">AFFORDABLE VS MARKET RATE UNITS</div>
+      <div class="mini-chart-wrap"><canvas id="chart-housing"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Modal Share Shift</div>
+      <div class="chart-sub">TRANSIT · CYCLE · VEHICLE · WALK</div>
+      <div class="mini-chart-wrap"><canvas id="chart-modal"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Policy impact table -->
+  <div class="chart-card">
+    <div class="chart-title">Policy Impact Registry</div>
+    <div class="chart-sub">ALL SIMULATED POLICIES WITH PROJECTED OUTCOMES</div>
+    <table class="policy-table" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th>Policy</th><th>Category</th><th>Status</th>
+          <th>Walkability Δ</th><th>AQI Δ</th><th>Housing Δ</th><th>Carbon Δ</th>
+          <th>Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Mixed-Use Zoning Reform</td><td><span class="tag tag-g">Land Use</span></td><td><span class="tag tag-b">DRAFT</span></td><td style="color:#10B981">+18pts</td><td>+4pts</td><td style="color:#10B981">+8,400 units</td><td>-8%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:82%;background:#10B981"></div></div></td></tr>
+        <tr><td>Green Corridor Mandate</td><td><span class="tag tag-g">Land Use</span></td><td><span class="tag tag-b">DRAFT</span></td><td>+6pts</td><td style="color:#10B981">+14pts</td><td>—</td><td style="color:#10B981">-18%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:70%;background:#2563EB"></div></div></td></tr>
+        <tr><td>Congestion Pricing Zone</td><td><span class="tag tag-a">Transport</span></td><td><span class="tag tag-b">DRAFT</span></td><td>+12pts</td><td>+8pts</td><td>—</td><td style="color:#10B981">-22%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:75%;background:#F59E0B"></div></div></td></tr>
+        <tr><td>Transit-Oriented Dev.</td><td><span class="tag tag-a">Transport</span></td><td><span class="tag tag-b">DRAFT</span></td><td>+15pts</td><td>+6pts</td><td style="color:#10B981">+12,400 units</td><td>-24%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:90%;background:#8B5CF6"></div></div></td></tr>
+        <tr><td>Affordable Housing Overlay</td><td><span class="tag tag-r">Housing</span></td><td><span class="tag tag-b">DRAFT</span></td><td>+4pts</td><td>+2pts</td><td style="color:#10B981">+6,200 units</td><td>-5%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:60%;background:#EF4444"></div></div></td></tr>
+        <tr><td>Net-Zero Carbon District</td><td><span class="tag tag-g">Environment</span></td><td><span class="tag tag-b">DRAFT</span></td><td>+8pts</td><td style="color:#10B981">+20pts</td><td>+2,100 units</td><td style="color:#10B981">-41%</td><td><div class="impact-bar-wrap"><div class="impact-bar" style="width:88%;background:#06B6D4"></div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════
+     PAGE 3: SCENARIOS
+═══════════════════════════════════ -->
+<div class="page" id="page-scenarios">
+<div class="scenarios-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Scenario Planning</div>
+      <div class="section-sub">RUN COMPOUND POLICY SIMULATIONS · BUILD CUSTOM SCENARIOS</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn" onclick="showScForm()">+ NEW SCENARIO</button>
+      <button class="ctrl-btn active">ALL SCENARIOS</button>
+    </div>
+  </div>
+
+  <!-- Pre-built scenario cards -->
+  <div class="sc-grid">
+
+    <div class="sc-card sc-blue" id="sc-1">
+      <div class="sc-name">15-Minute City Blueprint</div>
+      <div class="sc-desc">Combine transit-oriented development, mixed-use zoning, and cycling infrastructure to create a fully walkable district within 15-min access to all services.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Land Use</span><span class="sc-tag">Transport</span><span class="sc-tag">3 Policies</span><span class="sc-tag">10yr Horizon</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Walkability Gain</div><div class="sc-metric-val" style="color:#10B981">+42pts</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">VMT Reduction</div><div class="sc-metric-val" style="color:#10B981">-38%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">New Housing</div><div class="sc-metric-val" style="color:#60A5FA">+21K</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Cost Estimate</div><div class="sc-metric-val" style="color:#F59E0B">£1.2B</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(1,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-1"></div></div>
+    </div>
+
+    <div class="sc-card sc-green" id="sc-2">
+      <div class="sc-name">Climate Resilience Package</div>
+      <div class="sc-desc">Green corridors, net-zero district rules, and urban heat island mitigation combined to achieve 40% carbon reduction by 2035.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Environment</span><span class="sc-tag">Climate</span><span class="sc-tag">4 Policies</span><span class="sc-tag">15yr Horizon</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Carbon Cut</div><div class="sc-metric-val" style="color:#10B981">-41%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Green Cover</div><div class="sc-metric-val" style="color:#10B981">+28%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">AQI Gain</div><div class="sc-metric-val" style="color:#60A5FA">+24pts</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Flood Risk</div><div class="sc-metric-val" style="color:#10B981">-60%</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(2,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-2"></div></div>
+    </div>
+
+    <div class="sc-card sc-amber" id="sc-3">
+      <div class="sc-name">Housing Crisis Response</div>
+      <div class="sc-desc">Aggressive affordable housing mandates, community land trusts, and anti-displacement overlays to deliver 30,000 affordable units in 5 years.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Housing</span><span class="sc-tag">Equity</span><span class="sc-tag">2 Policies</span><span class="sc-tag">5yr Horizon</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Affordable Units</div><div class="sc-metric-val" style="color:#10B981">+30K</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Displacement Risk</div><div class="sc-metric-val" style="color:#10B981">-72%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Public Investment</div><div class="sc-metric-val" style="color:#F59E0B">£480M</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Social Return</div><div class="sc-metric-val" style="color:#10B981">4.2x</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(3,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-3"></div></div>
+    </div>
+
+    <div class="sc-card sc-red" id="sc-4">
+      <div class="sc-name">Congestion Zero Initiative</div>
+      <div class="sc-desc">City-wide pricing, Park & Ride expansion, cycling superhighways and mandatory EV fleets eliminate peak hour gridlock within 3 years.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Transport</span><span class="sc-tag">Mobility</span><span class="sc-tag">5 Policies</span><span class="sc-tag">3yr Horizon</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Traffic Reduction</div><div class="sc-metric-val" style="color:#10B981">-55%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Transit Ridership</div><div class="sc-metric-val" style="color:#60A5FA">+45%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Revenue p.a.</div><div class="sc-metric-val" style="color:#F59E0B">£860M</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Commute Time</div><div class="sc-metric-val" style="color:#10B981">-28min</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(4,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-4"></div></div>
+    </div>
+
+    <div class="sc-card sc-purple" id="sc-5">
+      <div class="sc-name">Smart City Transformation</div>
+      <div class="sc-desc">Sensor networks, AI traffic control, digital twin urban management, and adaptive zoning to create a fully data-driven city governance model.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Technology</span><span class="sc-tag">Governance</span><span class="sc-tag">6 Policies</span><span class="sc-tag">20yr Horizon</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Energy Efficiency</div><div class="sc-metric-val" style="color:#10B981">+35%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Response Time</div><div class="sc-metric-val" style="color:#10B981">-40%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">GDP Growth</div><div class="sc-metric-val" style="color:#60A5FA">+2.1%</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Capex Required</div><div class="sc-metric-val" style="color:#F59E0B">£3.4B</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(5,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-5"></div></div>
+    </div>
+
+    <div class="sc-card sc-teal" id="sc-6">
+      <div class="sc-name">Inclusive Growth Compact</div>
+      <div class="sc-desc">All six available policies enacted simultaneously as a comprehensive urban renewal strategy targeting all dimensions of city performance.</div>
+      <div class="sc-meta-row"><span class="sc-tag">Comprehensive</span><span class="sc-tag">All Sectors</span><span class="sc-tag">6 Policies</span><span class="sc-tag">25yr Vision</span></div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><div class="sc-metric-label">Overall Score</div><div class="sc-metric-val" style="color:#10B981">+68pts</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">New Residents</div><div class="sc-metric-val" style="color:#60A5FA">+280K</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Total Investment</div><div class="sc-metric-val" style="color:#F59E0B">£6.2B</div></div>
+        <div class="sc-metric"><div class="sc-metric-label">Social Return</div><div class="sc-metric-val" style="color:#10B981">7.8x</div></div>
+      </div>
+      <button class="sc-run-btn" onclick="runScenario(6,this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-6"></div></div>
+    </div>
+
+  </div>
+
+  <!-- Custom Scenario Builder Form -->
+  <div class="sc-form-card" id="sc-form" style="display:none">
+    <div class="sc-form-title">Build Custom Scenario</div>
+    <div class="sc-form-sub">DEFINE PARAMETERS · CONFIGURE POLICIES · SUBMIT FOR LLM SIMULATION</div>
+    <div class="form-grid">
+      <div class="form-group"><div class="form-label">Scenario Name</div><input class="form-input" placeholder="e.g. Net-Zero Urban Core 2040"></div>
+      <div class="form-group"><div class="form-label">Time Horizon</div>
+        <select class="form-select">
+          <option>2 Years</option><option>5 Years</option><option selected>10 Years</option><option>20 Years</option><option>30 Years</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Primary Objective</div>
+        <select class="form-select">
+          <option>Walkability</option><option>Carbon Reduction</option><option>Housing Affordability</option><option>Economic Growth</option><option>Equity</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Budget Cap (£M)</div><input class="form-input" type="number" placeholder="500" min="0"></div>
+      <div class="form-group"><div class="form-label">Policies to Include</div>
+        <select class="form-select" multiple style="height:70px">
+          <option>Mixed-Use Zoning</option><option>Green Corridor</option><option>Congestion Pricing</option><option>Transit-Oriented Dev</option><option>Affordable Housing</option><option>Net-Zero District</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">City Context</div>
+        <select class="form-select">
+          <option>London Metro</option><option>Manchester</option><option>Birmingham</option><option>Custom City</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px"><div class="form-label">Scenario Description & Goals</div><textarea class="form-textarea" placeholder="Describe the policy goals, target outcomes, key constraints, and any specific conditions for this scenario..."></textarea></div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px">
+      <div class="slider-group">
+        <div class="form-label">Population Growth Priority</div>
+        <div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="60" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="slider-val">60%</span></div>
+      </div>
+      <div class="slider-group">
+        <div class="form-label">Environmental Weight</div>
+        <div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="75" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="slider-val">75%</span></div>
+      </div>
+      <div class="slider-group">
+        <div class="form-label">Equity & Inclusion</div>
+        <div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="80" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="slider-val">80%</span></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="hideScForm()">Cancel</button>
+      <button class="btn-secondary" onclick="saveDraft()">Save Draft</button>
+      <button class="btn-primary" onclick="submitScenario()">▶ SUBMIT FOR SIMULATION</button>
+    </div>
+
+    <div id="sc-submit-out" style="display:none;margin-top:14px;padding:12px;background:rgba(37,99,235,0.04);border:1px solid rgba(37,99,235,0.12);border-radius:8px;font-size:10px;color:rgba(255,255,255,0.6);line-height:1.75;font-style:italic;min-height:50px"></div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════
+     PAGE 4: REPORTS
+═══════════════════════════════════ -->
+<div class="page" id="page-reports">
+<div class="reports-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Reports & Documentation</div>
+      <div class="section-sub">GENERATE · REVIEW · EXPORT POLICY IMPACT REPORTS</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn" onclick="generateReport()">+ GENERATE REPORT</button>
+      <button class="ctrl-btn active">ALL REPORTS</button>
+    </div>
+  </div>
+
+  <!-- Report generator form -->
+  <div class="report-gen-card">
+    <div class="sc-form-title">Report Generator</div>
+    <div class="sc-form-sub">CONFIGURE REPORT TYPE · SET PARAMETERS · GENERATE WITH AI</div>
+    <div class="report-form-grid">
+      <div class="form-group">
+        <div class="form-label">Report Title</div>
+        <input class="form-input" id="report-title-input" placeholder="Q1 2025 Policy Impact Assessment">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Report Type</div>
+        <select class="form-select" id="report-type-sel">
+          <option>Impact Assessment</option>
+          <option>Cost-Benefit Analysis</option>
+          <option>Equity Audit</option>
+          <option>Environmental Report</option>
+          <option>Executive Summary</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Time Period</div>
+        <select class="form-select">
+          <option>Q1 2025</option><option>Q2 2025</option><option>H1 2025</option><option>Full Year 2025</option>
+        </select>
+      </div>
+      <div class="form-group" style="align-self:end">
+        <button class="btn-primary" style="width:100%" onclick="generateReport()">▶ GENERATE WITH AI</button>
+      </div>
+    </div>
+    <div id="report-gen-out" style="display:none;padding:12px;background:rgba(37,99,235,0.04);border:1px solid rgba(37,99,235,0.12);border-radius:8px;font-size:10px;color:rgba(255,255,255,0.6);line-height:1.75;font-style:italic;min-height:40px"></div>
+  </div>
+
+  <!-- Existing reports list -->
+  <div class="report-list">
+
+    <div class="report-item">
+      <div class="report-ico ri-blue">📊</div>
+      <div class="report-content">
+        <div class="report-name">Annual Urban Performance Review 2024</div>
+        <div class="report-meta">
+          <span>GENERATED: 15 Jan 2025</span>
+          <span>·</span><span>48 PAGES</span>
+          <span>·</span><span>By: Chief Planning Officer</span>
+        </div>
+      </div>
+      <div class="report-status rs-ready">READY</div>
+      <div class="report-actions">
+        <button class="r-btn" onclick="previewReport('annual')">PREVIEW</button>
+        <button class="r-btn primary">EXPORT PDF</button>
+      </div>
+    </div>
+
+    <div class="report-item">
+      <div class="report-ico ri-green">🌿</div>
+      <div class="report-content">
+        <div class="report-name">Climate Resilience Strategy — Environmental Impact Report</div>
+        <div class="report-meta">
+          <span>GENERATED: 22 Feb 2025</span>
+          <span>·</span><span>32 PAGES</span>
+          <span>·</span><span>By: Sustainability Dept.</span>
+        </div>
+      </div>
+      <div class="report-status rs-ready">READY</div>
+      <div class="report-actions">
+        <button class="r-btn" onclick="previewReport('climate')">PREVIEW</button>
+        <button class="r-btn primary">EXPORT PDF</button>
+      </div>
+    </div>
+
+    <div class="report-item">
+      <div class="report-ico ri-amber">🏘️</div>
+      <div class="report-content">
+        <div class="report-name">Affordable Housing Overlay — Cost-Benefit Analysis</div>
+        <div class="report-meta">
+          <span>GENERATED: 5 Mar 2025</span>
+          <span>·</span><span>24 PAGES</span>
+          <span>·</span><span>By: Housing Strategy Team</span>
+        </div>
+      </div>
+      <div class="report-status rs-gen">GENERATING</div>
+      <div class="report-actions">
+        <button class="r-btn">PREVIEW</button>
+        <button class="r-btn primary">EXPORT PDF</button>
+      </div>
+    </div>
+
+    <div class="report-item">
+      <div class="report-ico ri-purple">🚇</div>
+      <div class="report-content">
+        <div class="report-name">Congestion Pricing Equity Audit — Low-Income Impact Analysis</div>
+        <div class="report-meta">
+          <span>GENERATED: 12 Mar 2025</span>
+          <span>·</span><span>18 PAGES</span>
+          <span>·</span><span>By: Social Policy Unit</span>
+        </div>
+      </div>
+      <div class="report-status rs-draft">DRAFT</div>
+      <div class="report-actions">
+        <button class="r-btn" onclick="previewReport('congestion')">PREVIEW</button>
+        <button class="r-btn primary">EXPORT PDF</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Report preview section -->
+  <div class="report-preview" id="report-preview" style="display:none">
+    <div class="report-preview-header">
+      <div class="rph-left">
+        <div class="rph-title" id="rp-title-display">Annual Urban Performance Review 2024</div>
+        <div class="rph-meta" id="rp-meta-display">LONDON METRO · GENERATED 15 JAN 2025 · 48 PAGES · CHIEF PLANNING OFFICER</div>
+      </div>
+      <div class="rph-right">
+        <button class="r-btn" onclick="document.getElementById('report-preview').style.display='none'">CLOSE</button>
+        <button class="r-btn primary">EXPORT PDF</button>
+        <button class="r-btn primary" onclick="generateLLMSection()">◈ AI ANALYSIS</button>
+      </div>
+    </div>
+    <div class="report-content-preview">
+      <div>
+        <div class="rcp-section">
+          <div class="rcp-sec-title">Executive Summary</div>
+          <div class="rcp-text" id="rp-exec-text">This report presents a comprehensive assessment of urban policy performance across the London Metropolitan Area for the assessment period. The city has demonstrated measurable progress across key liveability indicators, with notable improvements in transit connectivity and green space provision. The data confirms that coordinated policy enactment produces compounding benefits that exceed the sum of individual policy impacts.</div>
+        </div>
+        <div class="rcp-section">
+          <div class="rcp-sec-title">Key Findings</div>
+          <div class="rcp-text" id="rp-findings-text">Walkability scores improved by 8.2% over the baseline period driven primarily by mixed-use zoning pilots in the inner ring. Transit coverage expanded to 69% of residential areas, up from 65%. Carbon intensity fell by 14% against the 2020 benchmark. Housing completions reached 4,200 units in Q4, though affordability pressures persist in 6 of 12 monitored boroughs requiring further policy intervention.</div>
+        </div>
+        <div class="rcp-section">
+          <div class="rcp-sec-title">AI-Generated Policy Narrative</div>
+          <div class="llm-report-out" id="llm-report-out">Click "◈ AI ANALYSIS" above to generate an AI-powered analysis of this report using the connected LLM.</div>
+        </div>
+      </div>
+      <div>
+        <div class="rcp-section">
+          <div class="rcp-sec-title">Performance Metrics</div>
+          <div class="rcp-metric-list">
+            <div class="rcp-metric"><div class="rcp-metric-name">Walkability Score</div><div class="rcp-metric-val" style="color:#10B981">74 / 100</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">AQI Index</div><div class="rcp-metric-val" style="color:#10B981">86</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Transit Coverage</div><div class="rcp-metric-val" style="color:#60A5FA">69%</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Housing Affordability</div><div class="rcp-metric-val" style="color:#F59E0B">42%</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Carbon Reduction</div><div class="rcp-metric-val" style="color:#10B981">-14%</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Population Growth</div><div class="rcp-metric-val" style="color:#60A5FA">+1.8%</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Green Space Coverage</div><div class="rcp-metric-val" style="color:#10B981">34%</div></div>
+            <div class="rcp-metric"><div class="rcp-metric-name">Housing Completions</div><div class="rcp-metric-val" style="color:#60A5FA">4,200</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-label">WALKABILITY</span><span class="stat-val sv-g" id="s-walk">72</span></div>
+  <div class="stat-item"><span class="stat-label">AQI</span><span class="stat-val sv-b" id="s-aqi">84</span></div>
+  <div class="stat-item"><span class="stat-label">AFFORDABILITY</span><span class="stat-val sv-a" id="s-haf">41%</span></div>
+  <div class="stat-item"><span class="stat-label">TRANSIT</span><span class="stat-val sv-b" id="s-tc">67%</span></div>
+  <div class="stat-item"><span class="stat-label">CARBON</span><span class="stat-val sv-g" id="s-co">-12%</span></div>
+  <div class="stat-item"><span class="stat-label">ENACTED</span><span class="stat-val sv-g" id="s-ep">0</span></div>
+  <div class="stat-item"><span class="stat-label">SIM T+</span><span class="stat-val" id="s-time">00:00:00</span></div>
+  <div class="stat-item"><span class="stat-label">OSM BUILD</span><span class="stat-val">r26.03.28</span></div>
+</div>
+
+<script>
+/* ═══════════════════════════════
+   GLOBAL STATE
+═══════════════════════════════ */
+let apiKey = '';
+let enactedPolicies = new Set();
+let enactedCount = 0;
+let currentPolicy = null;
+let simSecs = 0;
+let chatHistory = [];
+
+const URBAN_SYSTEM_PROMPT = `You are UrbanLLM, an expert AI system specialising in urban planning, city policy simulation, and spatial analysis. You assist policymakers with data-driven insights about urban development policies including land use zoning, transport planning, housing policy, environmental sustainability, and social equity.
+
+When analysing policies, provide structured insights covering:
+- Projected impact on key urban metrics (walkability, AQI, transit, housing, carbon)
+- Implementation risks and mitigation strategies
+- Equity considerations and potential displacement effects
+- Cost-benefit summary
+- Recommended companion policies
+
+Be concise, technical, and evidence-based. Use specific numbers and projections where possible. Format responses clearly for policymakers.`;
+
+/* ═══════════════════════════════
+   UTILITIES
+═══════════════════════════════ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toTimeString().slice(0,8) + ' UTC';
+}
+setInterval(updateClock, 1000); updateClock();
+
+setInterval(() => {
+  simSecs++;
+  const h = Math.floor(simSecs/3600).toString().padStart(2,'0');
+  const m = Math.floor((simSecs%3600)/60).toString().padStart(2,'0');
+  const s = (simSecs%60).toString().padStart(2,'0');
+  const t = `${h}:${m}:${s}`;
+  document.getElementById('simtime').textContent = t;
+  document.getElementById('s-time').textContent = t;
+}, 1000);
+
+function animStat(id, from, to, suffix='', neg=false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const steps=30, inc=(to-from)/steps;
+  let cur=from, step=0;
+  const iv = setInterval(() => {
+    cur+=inc; step++;
+    if(step>=steps){cur=to;clearInterval(iv);}
+    el.textContent=(neg?'-':'')+Math.round(Math.abs(cur))+suffix;
+  }, 50);
+}
+
+/* ═══════════════════════════════
+   PAGE NAVIGATION
+═══════════════════════════════ */
+function showPage(name, tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  tab.classList.add('active');
+  if (name==='analytics') initCharts();
+}
+
+/* ═══════════════════════════════
+   OSM MAP
+═══════════════════════════════ */
+const map = L.map('map', {zoomControl:false}).setView([51.505,-0.09],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19
+}).addTo(map);
+L.control.zoom({position:'bottomright'}).addTo(map);
+
+const policyZones = {
+  1:{color:'#10B981',zones:[[[51.515,-0.11],[51.52,-0.09],[51.518,-0.085],[51.513,-0.095]],[[51.508,-0.075],[51.513,-0.065],[51.51,-0.06],[51.505,-0.072]]]},
+  2:{color:'#3B82F6',zones:[[[51.5,-0.12],[51.503,-0.115],[51.501,-0.108],[51.498,-0.113]],[[51.512,-0.13],[51.516,-0.125],[51.514,-0.118],[51.51,-0.123]]]},
+  3:{color:'#F59E0B',zones:[[[51.505,-0.095],[51.51,-0.085],[51.508,-0.08],[51.503,-0.09]]]},
+  4:{color:'#8B5CF6',zones:[[[51.518,-0.1],[51.522,-0.095],[51.52,-0.088],[51.516,-0.093]],[[51.498,-0.08],[51.502,-0.074],[51.5,-0.068],[51.496,-0.074]]]},
+  5:{color:'#EF4444',zones:[[[51.504,-0.11],[51.508,-0.1],[51.506,-0.095],[51.502,-0.105]]]},
+  6:{color:'#8B5CF6',zones:[[[51.495,-0.095],[51.5,-0.082],[51.498,-0.075],[51.493,-0.088]],[[51.522,-0.11],[51.526,-0.1],[51.524,-0.094],[51.52,-0.104]]]}
+};
+const activePolygons = {};
+
+function setMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ═══════════════════════════════
+   POLICY DATA
+═══════════════════════════════ */
+const policyData = {
+  1:{name:'Mixed-Use Zoning Reform',
+    factors:{walkscore:{label:'Walk Score',val:'+18pts',dir:'up',trend:'72→90 projected'},density:{label:'Pop. Density',val:'+34%',dir:'up',trend:'By 2030'},retail:{label:'Retail Activity',val:'+£2.1B',dir:'up',trend:'Annual lift'},displacement:{label:'Displacement Risk',val:'Med',dir:'neutral',trend:'Needs monitoring'}},
+    todos:[{txt:'Rezone parcels R-1A through R-4C to MX-3 classification',pri:'h',done:false,zone:'CBD + Inner Ring'},{txt:'Update building height limits: 6→18 floors in transition zones',pri:'h',done:false,zone:'Zoning Sec.12'},{txt:'Mandate ground-floor active uses along primary corridors',pri:'m',done:true,zone:'Design guidelines'},{txt:'Commission community impact assessment for 4 wards',pri:'m',done:false,zone:'Ward 3,5,7,11'},{txt:'Establish inclusionary housing at 20% AMI',pri:'l',done:false,zone:'All parcels'},{txt:'Update GIS cadastral layer with new boundaries',pri:'h',done:false,zone:'OSM sync'}],
+    llmContext:'Mixed-Use Zoning Reform policy for CBD and inner ring, targeting walk score improvement from 72 to 90, 8400 new units, 22% VMT reduction within zone. Key risk: displacement of lower-income residents.'},
+  2:{name:'Green Corridor Mandate',
+    factors:{green:{label:'Green Cover',val:'+28%',dir:'up',trend:'Canopy expansion'},aqi:{label:'Air Quality',val:'+14pts',dir:'up',trend:'84→98 AQI'},flood:{label:'Flood Resilience',val:'High',dir:'up',trend:'15yr storm buffer'},temp:{label:'Urban Heat',val:'-2.4°C',dir:'up',trend:'SSP mitigation'}},
+    todos:[{txt:'Designate 6.2km waterfront as protected green corridor GC-1',pri:'h',done:false,zone:'Waterfront'},{txt:'Plant 4,200 native trees across 18 parcels',pri:'h',done:false,zone:'Phase 1'},{txt:'Install permeable paving on 12 intersections',pri:'m',done:false,zone:'Traffic dept'},{txt:'Create bioswale network to river edge',pri:'m',done:true,zone:'Engineering ✓'},{txt:'Restrict hard-surface within 50m of corridor',pri:'l',done:false,zone:'Code update'}],
+    llmContext:'Green Corridor Mandate targeting waterfront and parks belt, projecting 28% green cover increase, 2.4°C urban heat reduction, 840 tonnes CO2e annual sequestration, 14-point AQI improvement.'},
+  3:{name:'Congestion Pricing Zone',
+    factors:{traffic:{label:'Traffic Reduction',val:'-31%',dir:'up',trend:'Peak-hour flow'},revenue:{label:'Annual Revenue',val:'£420M',dir:'up',trend:'Infra fund'},transit:{label:'Transit Ridership',val:'+22%',dir:'up',trend:'Modal shift'},equity:{label:'Equity Impact',val:'Med',dir:'neutral',trend:'Low-income exemptions'}},
+    todos:[{txt:'Install 87 ANPR cameras at zone boundary entry points',pri:'h',done:false,zone:'Procurement'},{txt:'Set tiers: £5 off-peak / £15 peak / £25 heavy vehicle',pri:'h',done:true,zone:'TfL approved ✓'},{txt:'Launch low-income resident exemption scheme',pri:'m',done:false,zone:'Revenue authority'},{txt:'Integrate with Oyster/contactless payment',pri:'h',done:false,zone:'IT integration'},{txt:'Public consultation in 3 adjacent boroughs',pri:'m',done:false,zone:'8-week period'}],
+    llmContext:'Congestion Pricing Zone for downtown and commercial areas, projecting 31% peak-hour reduction, £420M annual revenue, 22% transit ridership increase, 180 additional buses needed. Equity risk: regressive without exemptions.'},
+  4:{name:'Transit-Oriented Development',
+    factors:{units:{label:'Housing Units',val:'+12,400',dir:'up',trend:'Within 800m nodes'},commute:{label:'Avg Commute',val:'-18min',dir:'up',trend:'Reduction projected'},vmt:{label:'VMT Reduction',val:'-24%',dir:'up',trend:'Vehicle miles'},jobs:{label:'Job Access',val:'+340K',dir:'up',trend:'30-min transit shed'}},
+    todos:[{txt:'Upzone 12 transit node catchment areas to mixed-use high density',pri:'h',done:false,zone:'12 TOD nodes'},{txt:'Require minimum 4.5 FAR within 400m of major stops',pri:'h',done:false,zone:'FAR code'},{txt:'Mandate 1,000 affordable units per node (30% AMI)',pri:'m',done:false,zone:'Inclusionary'},{txt:'Restrict surface parking: max 0.5 spaces per unit',pri:'m',done:true,zone:'Parking code ✓'},{txt:'Fast-track TOD-compliant development approvals',pri:'l',done:false,zone:'Planning'}],
+    llmContext:'Transit-Oriented Development around 12 major nodes, projecting 12,400 new housing units within 10 years, 18-minute commute reduction, 340K jobs within 30-minute transit shed, 24% VMT decrease.'},
+  5:{name:'Affordable Housing Overlay',
+    factors:{units:{label:'Affordable Units',val:'+6,200',dir:'up',trend:'By 2028'},ami:{label:'Income Target',val:'≤80% AMI',dir:'neutral',trend:'Area median'},cost:{label:'Subsidy Required',val:'£240M',dir:'down',trend:'Public investment'},disp:{label:'Displacement Risk',val:'Low',dir:'up',trend:'Overlay active'}},
+    todos:[{txt:'Designate 34 parcels as affordable housing priority zones',pri:'h',done:false,zone:'Site assembly'},{txt:'Issue 6,200-unit bond at 3.2% interest',pri:'h',done:false,zone:'Finance committee'},{txt:'Mandate 30% set-aside for all developments >50 units',pri:'m',done:false,zone:'Dev agreements'},{txt:'Establish community land trust for 800 permanent units',pri:'m',done:false,zone:'CLT legal'},{txt:'Anti-displacement fund: £12M for existing residents',pri:'h',done:true,zone:'Budget allocated ✓'}],
+    llmContext:'Affordable Housing Overlay targeting ≤80% AMI households, creating 6,200 units, preventing displacement of 14,000 residents by 2030, £240M public investment generating £1.8B social return.'},
+  6:{name:'Net-Zero Carbon District',
+    factors:{carbon:{label:'Carbon Reduction',val:'-41%',dir:'up',trend:'vs 2020 baseline'},energy:{label:'Energy Efficiency',val:'+35%',dir:'up',trend:'Building stock'},solar:{label:'Renewable Coverage',val:'78%',dir:'up',trend:'By 2032'},jobs:{label:'Green Jobs',val:'+8,400',dir:'up',trend:'Clean economy'}},
+    todos:[{txt:'Mandate net-zero building standards for all new construction',pri:'h',done:false,zone:'Building regs'},{txt:'Install 24MW rooftop solar on public buildings',pri:'h',done:false,zone:'Procurement'},{txt:'District heating network for 8,000 homes',pri:'m',done:false,zone:'Infra planning'},{txt:'Phase out gas boilers: 2028 deadline for all stock',pri:'m',done:false,zone:'Retrofit scheme'},{txt:'Electric vehicle charging: 1 per 3 units in all new dev',pri:'l',done:true,zone:'Planning condition ✓'}],
+    llmContext:'Net-Zero Carbon District policy covering entire metro area, targeting 41% carbon reduction vs 2020 baseline, 35% energy efficiency improvement, 78% renewable coverage by 2032, 8,400 green jobs created.'}
+};
+
+/* ═══════════════════════════════
+   SIMULATION FUNCTIONS
+═══════════════════════════════ */
+function selectPolicy(id) {
+  currentPolicy = id;
+  renderPolicyDetail(id);
+}
+
+function enactPolicy(evt, id) {
+  evt.stopPropagation();
+  if (enactedPolicies.has(id)) { selectPolicy(id); return; }
+  enactedPolicies.add(id);
+  enactedCount++;
+  document.getElementById('badge-'+id).textContent='ENACTED';
+  document.getElementById('badge-'+id).className='pc-badge b-enacted';
+  document.getElementById('btn-'+id).textContent='✓ ENACTED';
+  document.getElementById('btn-'+id).className='enact-btn done';
+  document.getElementById('pc-'+id).classList.add('enacted');
+  document.getElementById('s-ep').textContent=enactedCount;
+  document.getElementById('hud-pol').textContent=enactedCount;
+  document.getElementById('enacted-ct').textContent=enactedCount+' ENACTED';
+  document.getElementById('a-ep').textContent=enactedCount;
+
+  const zd=policyZones[id];
+  if(zd) {
+    activePolygons[id]=zd.zones.map(coords=>
+      L.polygon(coords,{color:zd.color,fillColor:zd.color,fillOpacity:0.15,weight:2,dashArray:'6 4'})
+      .addTo(map)
+      .bindPopup(`<b style="font-size:11px;font-family:monospace">${policyData[id].name}</b><br><span style="font-size:10px;opacity:0.7">ENACTED · Click for details</span>`)
+    );
+  }
+  updateStats(id);
+  showToast('✓ Policy enacted: '+policyData[id].name);
+  selectPolicy(id);
+}
+
+function renderPolicyDetail(id) {
+  const p = policyData[id];
+  const enacted = enactedPolicies.has(id);
+  const factorBoxes = Object.values(p.factors).map(f=>`
+    <div class="fbox"><div class="fb-label">${f.label}</div><div class="fb-val ${f.dir}">${f.val}</div><div class="fb-trend">${f.trend}</div></div>
+  `).join('');
+  const doneCnt = p.todos.filter(t=>t.done).length;
+  const todos = p.todos.map((t,i)=>`
+    <div class="todo-item ${t.done?'done':''}" onclick="toggleTodo(${id},${i})">
+      <div class="todo-chk">${t.done?'✓':''}</div>
+      <div style="flex:1"><div class="todo-txt">${t.txt}</div><div class="todo-meta">${t.zone}</div></div>
+      <div class="todo-pri ${t.pri==='h'?'pri-h':t.pri==='m'?'pri-m':'pri-l'}">${t.pri==='h'?'HIGH':t.pri==='m'?'MED':'LOW'}</div>
+    </div>`).join('');
+  document.getElementById('rp-body').innerHTML=`
+    <div class="apc-wrap">
+      <div class="apc-hdr"><div class="apc-name">${p.name}</div><div class="apc-status">${enacted?'ENACTED':'DRAFT'}</div></div>
+      <div class="factor-grid">${factorBoxes}</div>
+    </div>
+    <div class="todo-sec">
+      <div class="todo-hdr"><div class="todo-title">Implementation Tasks</div><div class="todo-ct">${doneCnt}/${p.todos.length}</div></div>
+      ${todos}
+    </div>
+    <div class="llm-sec">
+      <div class="llm-hdr"><div class="llm-ico">◈</div><div class="llm-label">UrbanLLM Analysis</div></div>
+      <div class="llm-out" id="llm-out">Click below to run AI simulation analysis...</div>
+      <button style="width:100%;margin-top:8px;padding:6px;border-radius:5px;border:1px solid rgba(37,99,235,0.3);background:rgba(37,99,235,0.08);color:rgba(255,255,255,0.6);font-family:var(--font-mono);font-size:8px;cursor:pointer;letter-spacing:0.05em;transition:all 0.2s" onmouseover="this.style.background='rgba(37,99,235,0.2)'" onmouseout="this.style.background='rgba(37,99,235,0.08)'" onclick="runPolicyLLM(${id})">◈ RUN AI SIMULATION</button>
+    </div>`;
+}
+
+function toggleTodo(pid,idx) {
+  policyData[pid].todos[idx].done = !policyData[pid].todos[idx].done;
+  renderPolicyDetail(pid);
+}
+
+function updateStats(id) {
+  if(id===1){animStat('s-walk',72,82);}
+  if(id===2){animStat('s-aqi',84,94);animStat('s-co',12,18,'%',true);}
+  if(id===3){animStat('s-tc',67,78,'%');}
+  if(id===5){animStat('s-haf',41,54,'%');}
+}
+
+async function runPolicyLLM(id) {
+  const p = policyData[id];
+  const el = document.getElementById('llm-out');
+  if (!el) return;
+  if (!apiKey) {
+    typeText(el, 'UrbanLLM simulation: '+p.name+' projects significant urban transformation. '+
+      'Mixed-use density gains improve walkability by 18 points. Transit modal shift reduces peak VMT by 24%. '+
+      'Displacement risk requires companion affordability overlay. Estimated 10-year ROI: 4.2x public investment. '+
+      '→ Connect API key in the chat panel below for live LLM analysis.');
+    return;
+  }
+  el.innerHTML='<span class="llm-cursor"></span>';
+  try {
+    const resp = await callAnthropicAPI([{role:'user',content:`Analyse this urban policy for a city simulation platform: ${p.llmContext}. Provide a 3-4 sentence expert simulation analysis covering projected impacts, risks, and recommendations. Be specific with numbers.`}]);
+    typeText(el, resp);
+  } catch(e) {
+    typeText(el, 'API error: '+e.message+'. Check your API key in the chat panel.');
+  }
+}
+
+/* ═══════════════════════════════
+   ANTHROPIC API
+═══════════════════════════════ */
+function saveApiKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k) return;
+  apiKey = k;
+  document.getElementById('model-badge').textContent = 'CLAUDE ONLINE';
+  document.getElementById('model-badge').style.color = '#10B981';
+  document.getElementById('model-badge').style.background = 'rgba(16,185,129,0.1)';
+  document.getElementById('model-badge').style.borderColor = 'rgba(16,185,129,0.25)';
+  document.getElementById('api-key-input').value = '';
+  addChatMsg('ai', '✓ API key connected. I am now powered by Claude Sonnet. Ask me anything about your urban policies!');
+  showToast('✓ Anthropic API connected');
+}
+
+async function callAnthropicAPI(messages) {
+  if (!apiKey) throw new Error('No API key set');
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: URBAN_SYSTEM_PROMPT,
+      messages: messages
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'API request failed');
+  }
+  const data = await response.json();
+  return data.content[0]?.text || '';
+}
+
+/* ═══════════════════════════════
+   CHAT
+═══════════════════════════════ */
+function addChatMsg(role, text) {
+  const div = document.getElementById('chat-msgs');
+  const msg = document.createElement('div');
+  msg.className = 'chat-msg '+role;
+  msg.textContent = text;
+  div.appendChild(msg);
+  div.scrollTop = div.scrollHeight;
+  return msg;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addChatMsg('user', text);
+  chatHistory.push({role:'user',content:text});
+
+  const thinking = addChatMsg('thinking', '◈ thinking...');
+  document.getElementById('chat-send-btn').disabled = true;
+
+  if (!apiKey) {
+    thinking.remove();
+    const urbanResponses = [
+      'Based on urban planning principles, '+text+' — this requires careful consideration of density, accessibility, and equity impacts. Mixed-use zoning typically generates 15-20% walkability improvements when combined with street activation policies.',
+      'For urban policy analysis: '+text+' — transit-oriented development shows the strongest co-benefits across housing, transport, and carbon metrics. I recommend combining with congestion pricing for compounding effects.',
+      'Urban simulation data suggests: This policy area shows 3-4x returns on public investment when equity overlays are included. Key success factors are community engagement and phased implementation.'
+    ];
+    const r = urbanResponses[Math.floor(Math.random()*urbanResponses.length)];
+    const msg = addChatMsg('ai','');
+    typeText(msg, r);
+    chatHistory.push({role:'assistant',content:r});
+    document.getElementById('chat-send-btn').disabled = false;
+    return;
+  }
+
+  try {
+    // Add context about enacted policies
+    const policyContext = enactedCount > 0
+      ? ' Context: Currently enacted policies: '+Array.from(enactedPolicies).map(id=>policyData[id].name).join(', ')+'.'
+      : '';
+    const msgs = [...chatHistory.slice(-8)];
+    if (policyContext && msgs[msgs.length-1]) {
+      msgs[msgs.length-1] = {...msgs[msgs.length-1], content: msgs[msgs.length-1].content + policyContext};
+    }
+    const reply = await callAnthropicAPI(msgs);
+    thinking.remove();
+    const msg = addChatMsg('ai','');
+    typeText(msg, reply);
+    chatHistory.push({role:'assistant',content:reply});
+  } catch(e) {
+    thinking.remove();
+    addChatMsg('ai','Error: '+e.message);
+  }
+  document.getElementById('chat-send-btn').disabled = false;
+}
+
+/* ═══════════════════════════════
+   SCENARIOS
+═══════════════════════════════ */
+function runScenario(id, btn) {
+  const card = document.getElementById('sc-'+id);
+  const prog = document.getElementById('sc-prog-'+id);
+  if (btn.classList.contains('running')) return;
+  btn.textContent = '◈ SIMULATING...';
+  btn.classList.add('running');
+  card.classList.add('running');
+  let pct = 0;
+  const iv = setInterval(() => {
+    pct += Math.random()*8+2;
+    if (pct>=100) {
+      pct=100;
+      clearInterval(iv);
+      btn.textContent='✓ SIMULATION COMPLETE';
+      btn.classList.remove('running');
+      card.classList.remove('running');
+      showToast('✓ Scenario simulation complete');
+      // Trigger LLM analysis if API connected
+      if(apiKey) runScenarioLLM(id, card);
+    }
+    prog.style.width=Math.min(pct,100)+'%';
+  }, 200);
+}
+
+async function runScenarioLLM(id, card) {
+  const names=['15-Minute City Blueprint','Climate Resilience Package','Housing Crisis Response','Congestion Zero Initiative','Smart City Transformation','Inclusive Growth Compact'];
+  try {
+    const resp = await callAnthropicAPI([{role:'user',content:`Provide a 2-sentence simulation result for the "${names[id-1]}" urban planning scenario. Include key projected metric outcomes with specific numbers.`}]);
+    const out = document.createElement('div');
+    out.style.cssText='margin-top:8px;padding:8px;background:rgba(37,99,235,0.04);border:1px solid rgba(37,99,235,0.1);border-radius:6px;font-size:9px;color:rgba(255,255,255,0.55);line-height:1.65;font-style:italic';
+    card.querySelector('.progress-bar').after(out);
+    typeText(out, resp);
+  } catch(e){}
+}
+
+function showScForm() {
+  document.getElementById('sc-form').style.display='block';
+  document.getElementById('sc-form').scrollIntoView({behavior:'smooth'});
+}
+function hideScForm() { document.getElementById('sc-form').style.display='none'; }
+function saveDraft() { showToast('Draft scenario saved'); hideScForm(); }
+
+async function submitScenario() {
+  const out = document.getElementById('sc-submit-out');
+  out.style.display='block';
+  out.textContent='◈ Running scenario through UrbanLLM simulation engine...';
+  if (!apiKey) {
+    await new Promise(r=>setTimeout(r,1200));
+    typeText(out, 'Scenario simulation complete. Projected outcomes: The combined policy package shows strong synergies with a compound walkability improvement of 38 points over 10 years. Carbon reduction reaches 35% through integrated green and transport measures. Housing pipeline delivers 18,400 units with 32% affordable share. Recommended: Phase implementation over 3 tranches to manage displacement risk. Estimated total investment: £890M with 5.1x social return on investment.');
+    return;
+  }
+  try {
+    const title = document.querySelector('#sc-form .form-input').value || 'Custom Scenario';
+    const resp = await callAnthropicAPI([{role:'user',content:`Simulate this urban planning scenario: "${title}". Provide projected outcomes across walkability, housing, carbon, transit and equity metrics with specific numbers and a brief implementation recommendation.`}]);
+    typeText(out, resp);
+  } catch(e) {
+    out.textContent='Error: '+e.message;
+  }
+}
+
+/* ═══════════════════════════════
+   REPORTS
+═══════════════════════════════ */
+const reportData = {
+  annual:{title:'Annual Urban Performance Review 2024',meta:'LONDON METRO · GENERATED 15 JAN 2025 · 48 PAGES',exec:'This report presents a comprehensive assessment of urban policy performance across the London Metropolitan Area for the 2024 assessment period. The city demonstrated measurable progress across key liveability indicators, with notable improvements in transit connectivity and green space provision.',findings:'Walkability scores improved by 8.2% over the baseline period driven primarily by mixed-use zoning pilots in the inner ring. Transit coverage expanded to 69% of residential areas. Carbon intensity fell by 14% against the 2020 benchmark. Housing completions reached 4,200 units in Q4.'},
+  climate:{title:'Climate Resilience Strategy — Environmental Impact Report',meta:'SUSTAINABILITY DEPT · GENERATED 22 FEB 2025 · 32 PAGES',exec:'Comprehensive environmental assessment of the Climate Resilience Package scenario. Green corridor implementation has begun across 3 of 6 designated zones with measurable improvements in urban heat island metrics and air quality in affected districts.',findings:'Urban heat reduction of 1.8°C recorded in corridor pilot zones. AQI improved from 84 to 91 in affected areas. 1,200 trees planted in Phase 1 with 92% survival rate. Bioswale network design approved by engineering, construction begins Q2 2025.'},
+  congestion:{title:'Congestion Pricing Equity Audit — Low-Income Impact',meta:'SOCIAL POLICY UNIT · GENERATED 12 MAR 2025 · 18 PAGES',exec:'Equity audit of proposed Congestion Pricing Zone focusing on differential impacts across income deciles. The analysis reveals significant progressive concerns that require mitigation through the proposed low-income exemption scheme before policy enactment.',findings:'Households in the lowest income quintile currently make 34% of peak-hour zone crossings. Without exemptions, the policy would cost average low-income household £180/month. With full exemption scheme, net impact becomes neutral for bottom 2 quintiles. Charging revenue of £420M enables cross-subsidy of transit improvements.'}
+};
+
+function previewReport(type) {
+  const r = reportData[type];
+  document.getElementById('rp-title-display').textContent = r.title;
+  document.getElementById('rp-meta-display').textContent = r.meta;
+  document.getElementById('rp-exec-text').textContent = r.exec;
+  document.getElementById('rp-findings-text').textContent = r.findings;
+  document.getElementById('llm-report-out').style.display='none';
+  document.getElementById('llm-report-out').textContent='Click "◈ AI ANALYSIS" to generate.';
+  document.getElementById('report-preview').style.display='block';
+  document.getElementById('report-preview').scrollIntoView({behavior:'smooth'});
+}
+
+async function generateLLMSection() {
+  const out = document.getElementById('llm-report-out');
+  out.style.display='block';
+  if (!apiKey) {
+    typeText(out, 'AI Analysis: This report demonstrates strong policy coherence across the urban development framework. The data shows compound benefits from simultaneous enactment of complementary policies, with walkability and transit improvements reinforcing each other. The equity dimension requires ongoing monitoring, particularly displacement pressures in transitional zones. Recommend accelerating the affordable housing overlay as a priority companion measure. Overall trajectory indicates the city is on track for its 2030 liveability targets, with carbon metrics showing the most significant positive deviation from baseline projections.');
+    return;
+  }
+  out.textContent = '◈ Generating AI analysis...';
+  const title = document.getElementById('rp-title-display').textContent;
+  const exec = document.getElementById('rp-exec-text').textContent;
+  try {
+    const resp = await callAnthropicAPI([{role:'user',content:`Write a 3-sentence AI policy analysis for this urban planning report: "${title}". Summary: ${exec}. Provide expert insights on policy effectiveness, risks, and strategic recommendations.`}]);
+    typeText(out, resp);
+  } catch(e) {
+    out.textContent = 'Error: '+e.message;
+  }
+}
+
+async function generateReport() {
+  const title = document.getElementById('report-title-input').value || 'Policy Impact Assessment';
+  const type = document.getElementById('report-type-sel').value;
+  const out = document.getElementById('report-gen-out');
+  out.style.display='block';
+  out.textContent='◈ Generating report with AI...';
+  if (!apiKey) {
+    await new Promise(r=>setTimeout(r,1000));
+    typeText(out, `Report "${title}" generated successfully. Type: ${type}. This ${type} covers all enacted policies across the simulation period. Key findings: Compound policy effects show 34% improvement in overall urban performance index. Three policies demonstrate strong synergies. Equity score: 72/100. Recommend reviewing displacement metrics quarterly. Full 42-page report available for export.`);
+    return;
+  }
+  try {
+    const enacted = enactedCount>0 ? Array.from(enactedPolicies).map(id=>policyData[id].name).join(', ') : 'No policies enacted yet';
+    const resp = await callAnthropicAPI([{role:'user',content:`Generate a brief executive summary for an urban planning ${type} report titled "${title}". Active policies: ${enacted}. Include 3-4 key findings with metrics and a recommendation. Keep it concise.`}]);
+    typeText(out, resp);
+    showToast('✓ Report generated: '+title);
+  } catch(e) {
+    out.textContent='Error: '+e.message;
+  }
+}
+
+/* ═══════════════════════════════
+   TYPE ANIMATION
+═══════════════════════════════ */
+function typeText(el, text, speed=14) {
+  el.innerHTML='<span class="llm-cursor"></span>';
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i>=text.length){clearInterval(iv);el.innerHTML=text;return;}
+    el.innerHTML=text.slice(0,++i)+'<span class="llm-cursor"></span>';
+  },speed);
+}
+
+/* ═══════════════════════════════
+   ANALYTICS CHARTS
+═══════════════════════════════ */
+let chartsInit = false;
+function initCharts() {
+  if (chartsInit) return;
+  chartsInit = true;
+  Chart.defaults.color='rgba(255,255,255,0.45)';
+  Chart.defaults.borderColor='rgba(255,255,255,0.06)';
+
+  const months=['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  new Chart(document.getElementById('chart-trend'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'Walkability',data:[65,67,68,69,70,71,72,73,73,74,74,74],borderColor:'#10B981',backgroundColor:'rgba(16,185,129,0.08)',tension:0.4,borderWidth:2,pointRadius:3,fill:true},
+      {label:'AQI',data:[80,81,81,82,83,83,84,84,85,86,86,86],borderColor:'#3B82F6',backgroundColor:'rgba(59,130,246,0.06)',tension:0.4,borderWidth:2,pointRadius:3,fill:true},
+      {label:'Transit %',data:[63,64,65,65,66,66,67,67,68,68,69,69],borderColor:'#8B5CF6',backgroundColor:'rgba(139,92,246,0.06)',tension:0.4,borderWidth:2,pointRadius:3,fill:true},
+      {label:'Affordability %',data:[45,44,43,43,43,42,42,42,41,41,42,42],borderColor:'#F59E0B',backgroundColor:'rgba(245,158,11,0.06)',tension:0.4,borderWidth:2,pointRadius:3,fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{family:'DM Mono',size:9}}}},scales:{y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:9}}},x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:9}}}}}
+  });
+
+  new Chart(document.getElementById('chart-donut'),{
+    type:'doughnut',
+    data:{labels:['Land Use','Transport','Housing','Environment'],datasets:[{data:[32,28,22,18],backgroundColor:['rgba(16,185,129,0.7)','rgba(37,99,235,0.7)','rgba(239,68,68,0.7)','rgba(6,182,212,0.7)'],borderColor:'rgba(8,12,22,0.8)',borderWidth:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{family:'DM Mono',size:9},padding:12}}},cutout:'68%'}
+  });
+
+  new Chart(document.getElementById('chart-carbon'),{
+    type:'bar',
+    data:{labels:['2022','2023','2024','2025','2026','2027'],datasets:[{label:'CO₂ Reduction (kt)',data:[0,45,120,280,420,580],backgroundColor:'rgba(16,185,129,0.55)',borderColor:'#10B981',borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:8}}},x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:8}}}}}
+  });
+
+  new Chart(document.getElementById('chart-housing'),{
+    type:'bar',
+    data:{labels:['Q1','Q2','Q3','Q4','Q1\'25'],datasets:[
+      {label:'Affordable',data:[320,480,540,680,820],backgroundColor:'rgba(16,185,129,0.6)',borderRadius:3},
+      {label:'Market Rate',data:[880,920,1040,1200,1480],backgroundColor:'rgba(37,99,235,0.4)',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:8,font:{family:'DM Mono',size:8},padding:8}}},scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:8}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{family:'DM Mono',size:8}}}}}
+  });
+
+  new Chart(document.getElementById('chart-modal'),{
+    type:'doughnut',
+    data:{labels:['Transit','Walking','Cycling','Private Vehicle'],datasets:[{data:[38,22,14,26],backgroundColor:['rgba(37,99,235,0.7)','rgba(16,185,129,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)'],borderColor:'rgba(8,12,22,0.8)',borderWidth:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{family:'DM Mono',size:8},padding:8}}},cutout:'60%'}
+  });
+}
+
+/* ═══════════════════════════════
+   CTRL BTN TOGGLE
+═══════════════════════════════ */
+document.querySelectorAll('.page-controls').forEach(group=>{
+  group.querySelectorAll('.ctrl-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      group.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+});
+
+/* Initial state */
+setTimeout(()=>renderPolicyDetail(1),400);
+</script>
+</body>
+</html>
