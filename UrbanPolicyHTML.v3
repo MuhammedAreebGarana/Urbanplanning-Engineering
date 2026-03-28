@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanPolicy — Karachi Policy Simulation Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#080C18;--ink2:#151E30;--ink3:#1E2D48;
+  --accent:#2563EB;--accentg:#10B981;--accentr:#EF4444;--accenty:#F59E0B;--accentp:#8B5CF6;--accentt:#06B6D4;
+  --border:rgba(37,99,235,0.14);--border2:rgba(37,99,235,0.28);
+  --font-head:'Syne',sans-serif;--font-body:'Inter',sans-serif;--font-mono:'DM Mono',monospace;
+}
+html,body{font-family:var(--font-body);background:var(--ink);color:#fff;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+
+/* ─────────── TOPBAR ─────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:50px;background:rgba(6,9,18,0.99);border-bottom:1px solid var(--border2);flex-shrink:0;z-index:1000}
+.logo{font-family:var(--font-head);font-size:15px;font-weight:800;letter-spacing:-0.4px;display:flex;align-items:center;gap:9px}
+.logo-mark{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.logo-city{font-size:9px;color:rgba(255,255,255,0.22);font-weight:400;letter-spacing:0.06em;font-family:var(--font-mono);margin-top:1px}
+.nav-tabs{display:flex;gap:2px}
+.ntab{font-family:var(--font-mono);font-size:9px;padding:5px 13px;border-radius:5px;border:1px solid transparent;cursor:pointer;color:rgba(255,255,255,0.38);background:transparent;transition:all 0.18s;letter-spacing:0.04em;text-transform:uppercase}
+.ntab:hover{color:rgba(255,255,255,0.72);border-color:var(--border)}
+.ntab.active{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.12)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.live-badge{display:flex;align-items:center;gap:5px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.22);border-radius:5px;padding:3px 9px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#10B981;animation:pulse 2s infinite}
+.live-txt{font-family:var(--font-mono);font-size:8px;color:#10B981;letter-spacing:0.07em}
+.clock-txt{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.05em}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ─────────── WORKSPACE ─────────── */
+.workspace{flex:1;overflow:hidden;position:relative}
+.page{display:none;height:100%;width:100%}
+.page.active{display:flex}
+
+/* ══════════════════════════════════
+   SIMULATION PAGE
+══════════════════════════════════ */
+.sim-layout{display:flex;width:100%;height:100%}
+
+/* LEFT PANEL */
+.left-panel{width:268px;flex-shrink:0;background:rgba(6,9,18,0.97);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.lp-section{border-bottom:1px solid var(--border)}
+.lp-head{padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.lp-head-txt{font-family:var(--font-mono);font-size:8px;letter-spacing:0.1em;color:rgba(255,255,255,0.3);text-transform:uppercase}
+.lp-scroll{flex:1;overflow-y:auto}
+.lp-scroll::-webkit-scrollbar{width:2px}
+.lp-scroll::-webkit-scrollbar-thumb{background:rgba(37,99,235,0.2);border-radius:1px}
+.lp-body{padding:7px 10px 10px}
+.pol-cat-label{font-family:var(--font-mono);font-size:7px;letter-spacing:0.12em;color:rgba(255,255,255,0.2);text-transform:uppercase;padding:7px 3px 3px}
+.pol-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);border-radius:7px;padding:8px 10px;margin-bottom:4px;cursor:pointer;transition:all 0.18s;position:relative;overflow:hidden}
+.pol-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px}
+.pol-card.green::before{background:#10B981}.pol-card.blue::before{background:#2563EB}
+.pol-card.amber::before{background:#F59E0B}.pol-card.red::before{background:#EF4444}.pol-card.purple::before{background:#8B5CF6}
+.pol-card:hover{background:rgba(37,99,235,0.06);border-color:var(--border)}
+.pol-card.enacted{background:rgba(16,185,129,0.04);border-color:rgba(16,185,129,0.16)}
+.pc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:5px}
+.pc-name{font-size:10px;font-weight:500;color:rgba(255,255,255,0.8);line-height:1.35}
+.pc-badge{font-family:var(--font-mono);font-size:6px;padding:2px 5px;border-radius:2px;flex-shrink:0;margin-top:1px}
+.b-draft{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.28);border:1px solid rgba(255,255,255,0.06)}
+.b-enacted{background:rgba(16,185,129,0.1);color:#10B981;border:1px solid rgba(16,185,129,0.25)}
+.pc-meta{margin-top:2px;font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.22)}
+.enact-btn{width:100%;margin-top:6px;padding:4px;border-radius:4px;border:1px solid rgba(37,99,235,0.25);background:rgba(37,99,235,0.07);color:rgba(255,255,255,0.55);font-family:var(--font-mono);font-size:7px;cursor:pointer;letter-spacing:0.04em;transition:all 0.18s}
+.enact-btn:hover{background:rgba(37,99,235,0.2);border-color:rgba(37,99,235,0.5);color:#fff}
+.enact-btn.done{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);color:#10B981;cursor:default}
+
+/* Layer toggle rows */
+.layer-row{display:flex;align-items:center;justify-content:space-between;padding:5px 3px;border-radius:5px;cursor:pointer;transition:background 0.15s}
+.layer-row:hover{background:rgba(255,255,255,0.025)}
+.layer-left{display:flex;align-items:center;gap:7px}
+.ldot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.lname{font-size:10px;color:rgba(255,255,255,0.55)}
+.toggle{width:26px;height:14px;border-radius:7px;background:rgba(255,255,255,0.08);position:relative;cursor:pointer;transition:background 0.18s;border:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+.toggle.on{background:rgba(37,99,235,0.5);border-color:rgba(37,99,235,0.65)}
+.toggle::after{content:'';width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform 0.18s}
+.toggle.on::after{transform:translateX(12px)}
+
+/* MAP */
+.map-area{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.map-hud-tl{position:absolute;top:12px;left:12px;z-index:500;display:flex;flex-direction:column;gap:6px}
+.map-hud-tr{position:absolute;top:12px;right:12px;z-index:500;display:flex;flex-direction:column;gap:6px}
+.hud-box{background:rgba(6,9,18,0.88);border:1px solid var(--border2);border-radius:7px;padding:8px 12px;backdrop-filter:blur(12px)}
+.hud-title{font-family:var(--font-mono);font-size:7px;letter-spacing:0.12em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:5px}
+.hud-row{display:flex;gap:14px;align-items:baseline}
+.hud-val{font-family:var(--font-head);font-size:18px;font-weight:700}
+.hud-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.32);margin-top:1px}
+.mode-sel{display:flex;gap:2px;background:rgba(6,9,18,0.88);border:1px solid var(--border2);border-radius:6px;padding:3px;backdrop-filter:blur(12px)}
+.mode-btn{font-family:var(--font-mono);font-size:7px;padding:4px 8px;border-radius:4px;border:none;background:transparent;color:rgba(255,255,255,0.35);cursor:pointer;letter-spacing:0.05em;transition:all 0.15s;text-transform:uppercase}
+.mode-btn.active{background:var(--accent);color:#fff}
+.sim-badge{background:rgba(6,9,18,0.88);border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:6px 11px;display:flex;align-items:center;gap:6px;backdrop-filter:blur(12px)}
+.sim-dot{width:5px;height:5px;border-radius:50%;background:#10B981;animation:pulse 1.5s infinite}
+.sim-txt{font-family:var(--font-mono);font-size:8px;color:#10B981;letter-spacing:0.05em}
+
+/* Map draw tooltip */
+.draw-tooltip{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(6,9,18,0.92);border:1px solid var(--border2);border-radius:6px;padding:7px 14px;font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,0.65);pointer-events:none;display:none}
+
+/* RIGHT PANEL */
+.right-panel{width:288px;flex-shrink:0;background:rgba(6,9,18,0.97);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.rp-title{font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:-0.3px;margin-bottom:1px}
+.rp-sub{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.25);letter-spacing:0.05em}
+.rp-body{flex:1;overflow-y:auto;padding:10px}
+.rp-body::-webkit-scrollbar{width:2px}
+.rp-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:1px}
+.apc-wrap{background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.12);border-radius:8px;padding:11px;margin-bottom:9px}
+.apc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.apc-name{font-family:var(--font-head);font-size:11px;font-weight:700}
+.apc-status{font-family:var(--font-mono);font-size:6px;background:rgba(16,185,129,0.1);color:#10B981;border:1px solid rgba(16,185,129,0.25);border-radius:2px;padding:2px 5px;letter-spacing:0.08em}
+.factor-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px}
+.fbox{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.045);border-radius:5px;padding:6px 8px}
+.fb-label{font-family:var(--font-mono);font-size:6px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:2px}
+.fb-val{font-family:var(--font-head);font-size:14px;font-weight:700}
+.fb-val.up{color:#10B981}.fb-val.down{color:#EF4444}.fb-val.neutral{color:#60A5FA}
+.fb-trend{font-family:var(--font-mono);font-size:7px;margin-top:1px;color:rgba(255,255,255,0.25)}
+.todo-sec{margin-bottom:9px}
+.todo-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.todo-title{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;text-transform:uppercase}
+.todo-ct{font-family:var(--font-mono);font-size:7px;background:rgba(37,99,235,0.1);color:#60A5FA;border-radius:2px;padding:1px 5px}
+.todo-item{display:flex;align-items:flex-start;gap:7px;padding:6px 8px;border-radius:5px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);margin-bottom:3px;cursor:pointer;transition:all 0.14s}
+.todo-item:hover{background:rgba(37,99,235,0.05);border-color:var(--border)}
+.todo-item.done{opacity:0.4}
+.todo-chk{width:13px;height:13px;border-radius:3px;border:1px solid rgba(255,255,255,0.16);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:7px;transition:all 0.18s}
+.todo-item.done .todo-chk{background:#10B981;border-color:#10B981;color:#fff}
+.todo-txt{font-size:9px;color:rgba(255,255,255,0.68);line-height:1.4;flex:1}
+.todo-item.done .todo-txt{text-decoration:line-through;color:rgba(255,255,255,0.25)}
+.todo-meta{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.2);margin-top:2px}
+.todo-pri{font-family:var(--font-mono);font-size:6px;padding:1px 4px;border-radius:2px;flex-shrink:0;margin-top:2px}
+.pri-h{background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.16)}
+.pri-m{background:rgba(245,158,11,0.1);color:#F59E0B;border:1px solid rgba(245,158,11,0.16)}
+.pri-l{background:rgba(37,99,235,0.1);color:#60A5FA;border:1px solid rgba(37,99,235,0.16)}
+.llm-sec{background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.09);border-radius:8px;padding:10px}
+.llm-hdr{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.llm-ico{width:18px;height:18px;background:rgba(37,99,235,0.13);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px}
+.llm-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;text-transform:uppercase}
+.llm-out{font-size:9px;color:rgba(255,255,255,0.58);line-height:1.75;font-style:italic;min-height:36px}
+.llm-cursor{display:inline-block;width:4px;height:9px;background:var(--accent);margin-left:1px;animation:blink 1s infinite}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+.run-ai-btn{width:100%;margin-top:7px;padding:5px;border-radius:4px;border:1px solid rgba(37,99,235,0.25);background:rgba(37,99,235,0.07);color:rgba(255,255,255,0.55);font-family:var(--font-mono);font-size:7px;cursor:pointer;letter-spacing:0.05em;transition:all 0.18s}
+.run-ai-btn:hover{background:rgba(37,99,235,0.18);border-color:rgba(37,99,235,0.45);color:#fff}
+.empty-state{text-align:center;padding:32px 14px}
+.empty-ico{font-size:26px;opacity:0.18;margin-bottom:9px}
+.empty-txt{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.18);letter-spacing:0.05em;line-height:1.9}
+
+/* ── CHAT / LLM PANEL ── */
+.chat-section{border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;max-height:230px}
+.ai-config-bar{padding:6px 10px;background:rgba(8,12,22,0.8);border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap;gap:4px}
+.ai-backend-btn{font-family:var(--font-mono);font-size:7px;padding:3px 7px;border-radius:3px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:rgba(255,255,255,0.35);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em}
+.ai-backend-btn.active{background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.35);color:#60A5FA}
+.ai-backend-btn.active-ollama{background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.32);color:#10B981}
+.ai-conn-input{flex:1;min-width:80px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:3px 7px;font-family:var(--font-mono);font-size:7px;color:#fff;outline:none}
+.ai-conn-input::placeholder{color:rgba(255,255,255,0.18)}
+.ai-conn-btn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.22);border-radius:3px;padding:3px 7px;font-family:var(--font-mono);font-size:7px;color:#F59E0B;cursor:pointer;white-space:nowrap;transition:all 0.14s}
+.ai-conn-btn:hover{background:rgba(245,158,11,0.2)}
+.chat-head{padding:6px 11px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.chat-ico{width:14px;height:14px;background:rgba(139,92,246,0.18);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:7px}
+.chat-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.07em;text-transform:uppercase;flex:1}
+.chat-model-badge{font-family:var(--font-mono);font-size:6px;padding:1px 5px;border-radius:2px}
+.badge-offline{color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+.badge-anthropic{color:#60A5FA;background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.22)}
+.badge-ollama{color:#10B981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.22)}
+.chat-msgs{flex:1;overflow-y:auto;padding:0 10px 5px;display:flex;flex-direction:column;gap:5px}
+.chat-msgs::-webkit-scrollbar{width:2px}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px}
+.chat-msg{font-size:9px;line-height:1.55;padding:5px 8px;border-radius:5px}
+.chat-msg.user{background:rgba(37,99,235,0.09);border:1px solid rgba(37,99,235,0.16);color:rgba(255,255,255,0.72)}
+.chat-msg.ai{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);color:rgba(255,255,255,0.62)}
+.chat-msg.thinking{color:rgba(255,255,255,0.28);font-style:italic;font-family:var(--font-mono);font-size:8px;border:none;background:transparent;padding:2px 0}
+.chat-input-row{display:flex;gap:4px;padding:5px 10px 8px;flex-shrink:0}
+.chat-input{flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:4px;padding:5px 8px;font-family:var(--font-mono);font-size:8px;color:#fff;outline:none;transition:border 0.14s}
+.chat-input:focus{border-color:rgba(37,99,235,0.4)}
+.chat-input::placeholder{color:rgba(255,255,255,0.18)}
+.chat-send{background:rgba(37,99,235,0.18);border:1px solid rgba(37,99,235,0.3);border-radius:4px;padding:4px 9px;font-family:var(--font-mono);font-size:7px;color:#60A5FA;cursor:pointer;transition:all 0.14s;white-space:nowrap}
+.chat-send:hover{background:rgba(37,99,235,0.3);color:#fff}
+.chat-send:disabled{opacity:0.35;cursor:not-allowed}
+
+/* ── STATS BAR ── */
+.stats-bar{display:flex;align-items:center;border-top:1px solid var(--border);height:32px;flex-shrink:0;background:rgba(4,7,15,0.99)}
+.stat-item{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.22);letter-spacing:0.06em}
+.stat-val{font-family:var(--font-mono);font-size:9px;font-weight:500}
+.sv-g{color:#10B981}.sv-b{color:#60A5FA}.sv-a{color:#F59E0B}
+
+/* ═══════════════════════════════
+   ANALYTICS PAGE
+═══════════════════════════════ */
+.analytics-page,.scenarios-page,.reports-page{flex-direction:column;overflow-y:auto;width:100%}
+.page-inner{padding:22px 26px;flex:1}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+.section-title{font-family:var(--font-head);font-size:21px;font-weight:800;letter-spacing:-0.5px}
+.section-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.07em;margin-top:3px}
+.page-controls{display:flex;gap:5px;flex-wrap:wrap}
+.ctrl-btn{font-family:var(--font-mono);font-size:8px;padding:5px 11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:rgba(255,255,255,0.38);cursor:pointer;transition:all 0.15s;letter-spacing:0.04em}
+.ctrl-btn:hover,.ctrl-btn.active{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.1)}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.kpi-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:12px 14px;position:relative;overflow:hidden}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-g::after{background:#10B981}.kpi-b::after{background:#2563EB}.kpi-a::after{background:#F59E0B}
+.kpi-r::after{background:#EF4444}.kpi-p::after{background:#8B5CF6}.kpi-t::after{background:#06B6D4}
+.kpi-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.28);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px}
+.kpi-val{font-family:var(--font-head);font-size:20px;font-weight:800;line-height:1}
+.kpi-change{font-family:var(--font-mono);font-size:8px;margin-top:4px}
+.kpi-up{color:#10B981}.kpi-down{color:#EF4444}.kpi-flat{color:rgba(255,255,255,0.28)}
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px}
+.chart-card{background:rgba(255,255,255,0.018);border:1px solid rgba(255,255,255,0.055);border-radius:10px;padding:16px 18px}
+.chart-title{font-family:var(--font-head);font-size:12px;font-weight:700;margin-bottom:2px}
+.chart-sub{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.25);letter-spacing:0.06em;margin-bottom:14px}
+.chart-wrap{position:relative;height:175px}
+.charts-grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+.mini-chart-wrap{position:relative;height:115px}
+.policy-table{width:100%;border-collapse:collapse;font-size:10px}
+.policy-table th{font-family:var(--font-mono);font-size:7px;letter-spacing:0.08em;color:rgba(255,255,255,0.28);text-transform:uppercase;padding:7px 11px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.055)}
+.policy-table td{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,0.035);color:rgba(255,255,255,0.65);vertical-align:middle}
+.policy-table tr:hover td{background:rgba(255,255,255,0.018)}
+.impact-bar-wrap{width:80px;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden}
+.impact-bar{height:100%;border-radius:3px;transition:width 0.5s}
+.tag{font-family:var(--font-mono);font-size:6px;padding:2px 5px;border-radius:2px;display:inline-block}
+.tag-g{background:rgba(16,185,129,0.1);color:#10B981;border:1px solid rgba(16,185,129,0.2)}
+.tag-b{background:rgba(37,99,235,0.1);color:#60A5FA;border:1px solid rgba(37,99,235,0.2)}
+.tag-a{background:rgba(245,158,11,0.1);color:#F59E0B;border:1px solid rgba(245,158,11,0.2)}
+.tag-r{background:rgba(239,68,68,0.1);color:#EF4444;border:1px solid rgba(239,68,68,0.2)}
+
+/* ═══════════════════════════════
+   SCENARIOS PAGE
+═══════════════════════════════ */
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+.sc-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:11px;padding:18px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.18s}
+.sc-card:hover{border-color:var(--border2);background:rgba(37,99,235,0.04)}
+.sc-card.running{border-color:rgba(16,185,129,0.28);background:rgba(16,185,129,0.025)}
+.sc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2.5px;border-radius:11px 11px 0 0}
+.sc-card.sc-blue::before{background:linear-gradient(90deg,#2563EB,#60A5FA)}
+.sc-card.sc-green::before{background:linear-gradient(90deg,#10B981,#34D399)}
+.sc-card.sc-amber::before{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.sc-card.sc-red::before{background:linear-gradient(90deg,#EF4444,#F87171)}
+.sc-card.sc-purple::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.sc-card.sc-teal::before{background:linear-gradient(90deg,#06B6D4,#67E8F9)}
+.sc-name{font-family:var(--font-head);font-size:13px;font-weight:700;margin-bottom:3px}
+.sc-desc{font-size:10px;color:rgba(255,255,255,0.42);line-height:1.55;margin-bottom:12px}
+.sc-meta-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.sc-tag{font-family:var(--font-mono);font-size:7px;padding:2px 6px;border-radius:2px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.38)}
+.sc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.sc-metric{background:rgba(255,255,255,0.025);border-radius:5px;padding:6px 8px}
+.sc-metric-label{font-family:var(--font-mono);font-size:6px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px}
+.sc-metric-val{font-family:var(--font-head);font-size:13px;font-weight:700}
+.sc-run-btn{width:100%;padding:7px;border-radius:5px;border:1px solid rgba(37,99,235,0.25);background:rgba(37,99,235,0.07);color:rgba(255,255,255,0.6);font-family:var(--font-mono);font-size:8px;cursor:pointer;transition:all 0.18s;letter-spacing:0.05em}
+.sc-run-btn:hover{background:rgba(37,99,235,0.18);border-color:rgba(37,99,235,0.45);color:#fff}
+.sc-run-btn.running{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3);color:#10B981}
+.progress-bar{width:100%;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:7px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:#10B981;transition:width 0.25s;width:0%}
+.sc-llm-out{margin-top:7px;padding:8px;background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.09);border-radius:5px;font-size:8px;color:rgba(255,255,255,0.52);line-height:1.65;font-style:italic;display:none}
+
+/* Scenario form */
+.sc-form-card{background:rgba(255,255,255,0.018);border:1px solid rgba(255,255,255,0.065);border-radius:10px;padding:20px;margin-bottom:18px}
+.sc-form-title{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:3px}
+.sc-form-sub{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.35);letter-spacing:0.07em;text-transform:uppercase}
+.form-input,.form-select{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);border-radius:5px;padding:7px 10px;font-family:var(--font-mono);font-size:9px;color:#fff;outline:none;transition:border 0.14s;width:100%}
+.form-input:focus,.form-select:focus{border-color:rgba(37,99,235,0.45)}
+.form-input::placeholder{color:rgba(255,255,255,0.18)}
+.form-select option{background:#151E30;color:#fff}
+.form-textarea{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);border-radius:5px;padding:8px 10px;font-family:var(--font-mono);font-size:9px;color:#fff;outline:none;transition:border 0.14s;width:100%;resize:vertical;min-height:75px}
+.form-textarea:focus{border-color:rgba(37,99,235,0.45)}
+.form-textarea::placeholder{color:rgba(255,255,255,0.18)}
+.form-actions{display:flex;gap:7px;justify-content:flex-end}
+.btn-primary{padding:8px 18px;border-radius:5px;border:1px solid rgba(37,99,235,0.45);background:rgba(37,99,235,0.18);color:#fff;font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all 0.18s;letter-spacing:0.04em}
+.btn-primary:hover{background:rgba(37,99,235,0.3);border-color:rgba(37,99,235,0.65)}
+.btn-secondary{padding:8px 14px;border-radius:5px;border:1px solid rgba(255,255,255,0.09);background:transparent;color:rgba(255,255,255,0.45);font-family:var(--font-mono);font-size:9px;cursor:pointer;transition:all 0.18s;letter-spacing:0.04em}
+.btn-secondary:hover{border-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.75)}
+.slider-group{display:flex;flex-direction:column;gap:5px}
+.slider-row{display:flex;align-items:center;gap:9px}
+.form-slider{flex:1;-webkit-appearance:none;appearance:none;height:3px;background:rgba(255,255,255,0.09);border-radius:2px;outline:none}
+.form-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+.slider-val{font-family:var(--font-mono);font-size:9px;color:#60A5FA;min-width:28px;text-align:right}
+.sc-submit-out{display:none;margin-top:12px;padding:11px;background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.1);border-radius:7px;font-size:9px;color:rgba(255,255,255,0.58);line-height:1.75;font-style:italic;min-height:44px}
+
+/* ═══════════════════════════════
+   REPORTS PAGE
+═══════════════════════════════ */
+.report-gen-card{background:rgba(255,255,255,0.018);border:1px solid rgba(255,255,255,0.065);border-radius:10px;padding:20px;margin-bottom:18px}
+.report-form-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:14px;align-items:end}
+.report-list{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.report-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.065);border-radius:9px;padding:14px 18px;display:flex;align-items:center;gap:12px;transition:all 0.18s;cursor:pointer}
+.report-item:hover{border-color:var(--border);background:rgba(37,99,235,0.03)}
+.report-ico{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ri-blue{background:rgba(37,99,235,0.1)}.ri-green{background:rgba(16,185,129,0.1)}.ri-amber{background:rgba(245,158,11,0.1)}.ri-purple{background:rgba(139,92,246,0.1)}
+.report-content{flex:1}
+.report-name{font-family:var(--font-head);font-size:12px;font-weight:700;margin-bottom:2px}
+.report-meta{font-family:var(--font-mono);font-size:7px;color:rgba(255,255,255,0.28);display:flex;gap:10px;flex-wrap:wrap}
+.report-actions{display:flex;gap:5px;flex-shrink:0}
+.r-btn{font-family:var(--font-mono);font-size:7px;padding:4px 10px;border-radius:3px;border:1px solid rgba(255,255,255,0.09);background:transparent;color:rgba(255,255,255,0.45);cursor:pointer;transition:all 0.14s;letter-spacing:0.04em}
+.r-btn:hover{border-color:var(--border2);color:#fff;background:rgba(37,99,235,0.09)}
+.r-btn.primary{border-color:rgba(37,99,235,0.3);background:rgba(37,99,235,0.08);color:#60A5FA}
+.report-status{font-family:var(--font-mono);font-size:7px;padding:2px 7px;border-radius:2px;flex-shrink:0}
+.rs-ready{background:rgba(16,185,129,0.08);color:#10B981;border:1px solid rgba(16,185,129,0.2)}
+.rs-gen{background:rgba(245,158,11,0.08);color:#F59E0B;border:1px solid rgba(245,158,11,0.2)}
+.rs-draft{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.07)}
+.report-preview{background:rgba(255,255,255,0.018);border:1px solid rgba(255,255,255,0.065);border-radius:10px;padding:20px;margin-bottom:18px}
+.report-preview-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.055)}
+.rph-title{font-family:var(--font-head);font-size:16px;font-weight:800;letter-spacing:-0.3px;margin-bottom:2px}
+.rph-meta{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.05em}
+.report-content-preview{display:grid;grid-template-columns:3fr 2fr;gap:18px}
+.rcp-section{margin-bottom:12px}
+.rcp-sec-title{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.045)}
+.rcp-text{font-size:10px;color:rgba(255,255,255,0.52);line-height:1.75}
+.rcp-metric-list{display:flex;flex-direction:column;gap:6px}
+.rcp-metric{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:5px;border:1px solid rgba(255,255,255,0.045)}
+.rcp-metric-name{font-size:10px;color:rgba(255,255,255,0.55)}
+.rcp-metric-val{font-family:var(--font-head);font-size:12px;font-weight:700}
+.rcp-metric-list-wrap{display:flex;flex-direction:column;gap:5px}
+.report-gen-out{display:none;margin-top:12px;padding:11px;background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.09);border-radius:6px;font-size:9px;color:rgba(255,255,255,0.58);line-height:1.75;font-style:italic;min-height:36px}
+.llm-report-out{margin-top:8px;padding:11px;background:rgba(37,99,235,0.03);border:1px solid rgba(37,99,235,0.09);border-radius:6px;font-size:9px;color:rgba(255,255,255,0.58);line-height:1.75;font-style:italic;display:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);background:rgba(4,7,15,0.96);border:1px solid rgba(16,185,129,0.35);border-radius:6px;padding:8px 16px;font-family:var(--font-mono);font-size:9px;color:#10B981;letter-spacing:0.04em;z-index:3000;opacity:0;transition:opacity 0.25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2000;display:none;align-items:center;justify-content:center}
+.modal-backdrop.show{display:flex}
+.modal{background:#0E1525;border:1px solid var(--border2);border-radius:12px;padding:24px;min-width:380px;max-width:520px;position:relative}
+.modal-title{font-family:var(--font-head);font-size:15px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.06em;margin-bottom:18px}
+.modal-close{position:absolute;top:14px;right:14px;background:transparent;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:14px;line-height:1}
+.modal-close:hover{color:#fff}
+.modal-body{display:flex;flex-direction:column;gap:10px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">⬡</div>
+    <div>
+      <div><span style="color:var(--accent)">Urban</span>Policy</div>
+      <div class="logo-city">KARACHI METROPOLITAN PLANNING AUTHORITY</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="ntab active" onclick="showPage('simulation',this)">Simulation</div>
+    <div class="ntab" onclick="showPage('analytics',this)">Analytics</div>
+    <div class="ntab" onclick="showPage('scenarios',this)">Scenarios</div>
+    <div class="ntab" onclick="showPage('reports',this)">Reports</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div><div class="live-txt" id="engine-status-txt">OSM · AI READY</div></div>
+    <div class="clock-txt" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     WORKSPACE
+═══════════════════════════════════ -->
+<div class="workspace">
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 1 — SIMULATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page active" id="page-simulation">
+<div class="sim-layout">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="lp-section">
+      <div class="lp-head">
+        <span class="lp-head-txt">Policy Library</span>
+        <span id="enacted-ct" style="font-family:var(--font-mono);font-size:8px;color:var(--accentg)">0 ENACTED</span>
+      </div>
+    </div>
+    <div class="lp-scroll">
+      <div class="lp-body">
+
+        <div class="pol-cat-label">Land Use</div>
+        <div class="pol-card green" id="pc-1" onclick="selectPolicy(1)">
+          <div class="pc-top"><div class="pc-name">Mixed-Use Zoning Reform</div><div class="pc-badge b-draft" id="badge-1">DRAFT</div></div>
+          <div class="pc-meta">SADDAR · CLIFTON · GULSHAN</div>
+          <button class="enact-btn" id="btn-1" onclick="enactPolicy(event,1)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-card blue" id="pc-2" onclick="selectPolicy(2)">
+          <div class="pc-top"><div class="pc-name">Coastal Green Corridor</div><div class="pc-badge b-draft" id="badge-2">DRAFT</div></div>
+          <div class="pc-meta">CLIFTON BEACH · KEAMARI · MANORA</div>
+          <button class="enact-btn" id="btn-2" onclick="enactPolicy(event,2)">▶ ENACT POLICY</button>
+        </div>
+
+        <div class="pol-cat-label">Transport</div>
+        <div class="pol-card amber" id="pc-3" onclick="selectPolicy(3)">
+          <div class="pc-top"><div class="pc-name">BRT Expansion — Orange Line</div><div class="pc-badge b-draft" id="badge-3">DRAFT</div></div>
+          <div class="pc-meta">SURJANI → MALIR → PORT QASIM</div>
+          <button class="enact-btn" id="btn-3" onclick="enactPolicy(event,3)">▶ ENACT POLICY</button>
+        </div>
+        <div class="pol-card blue" id="pc-4" onclick="selectPolicy(4)">
+          <div class="pc-top"><div class="pc-name">Transit-Oriented Nodes</div><div class="pc-badge b-draft" id="badge-4">DRAFT</div></div>
+          <div class="pc-meta">8 BRT / CIRCULAR RAILWAY NODES</div>
+          <button class="enact-btn" id="btn-4" onclick="enactPolicy(event,4)">▶ ENACT POLICY</button>
+        </div>
+
+        <div class="pol-cat-label">Housing</div>
+        <div class="pol-card red" id="pc-5" onclick="selectPolicy(5)">
+          <div class="pc-top"><div class="pc-name">Katchi Abadi Regularisation</div><div class="pc-badge b-draft" id="badge-5">DRAFT</div></div>
+          <div class="pc-meta">TARGET: 600+ INFORMAL SETTLEMENTS</div>
+          <button class="enact-btn" id="btn-5" onclick="enactPolicy(event,5)">▶ ENACT POLICY</button>
+        </div>
+
+        <div class="pol-cat-label">Environment</div>
+        <div class="pol-card purple" id="pc-6" onclick="selectPolicy(6)">
+          <div class="pc-top"><div class="pc-name">Net-Zero Industry Zone</div><div class="pc-badge b-draft" id="badge-6">DRAFT</div></div>
+          <div class="pc-meta">SITE C · KORANGI INDUSTRIAL</div>
+          <button class="enact-btn" id="btn-6" onclick="enactPolicy(event,6)">▶ ENACT POLICY</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAP LAYERS — fully wired -->
+    <div class="lp-section" style="flex-shrink:0">
+      <div class="lp-head"><span class="lp-head-txt">Map Layers</span></div>
+      <div class="lp-body">
+        <div class="layer-row" onclick="toggleLayer('greenSpaces')">
+          <div class="layer-left"><div class="ldot" style="background:#10B981"></div><div class="lname">Green Spaces</div></div>
+          <div class="toggle on" id="toggle-greenSpaces"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('congestion')">
+          <div class="layer-left"><div class="ldot" style="background:#F59E0B"></div><div class="lname">Congestion Heat</div></div>
+          <div class="toggle on" id="toggle-congestion"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('zoning')">
+          <div class="layer-left"><div class="ldot" style="background:#2563EB"></div><div class="lname">Zoning Districts</div></div>
+          <div class="toggle on" id="toggle-zoning"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('density')">
+          <div class="layer-left"><div class="ldot" style="background:#EF4444"></div><div class="lname">Density Overlay</div></div>
+          <div class="toggle" id="toggle-density"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('transit')">
+          <div class="layer-left"><div class="ldot" style="background:#8B5CF6"></div><div class="lname">Transport Nodes</div></div>
+          <div class="toggle on" id="toggle-transit"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('flood')">
+          <div class="layer-left"><div class="ldot" style="background:#06B6D4"></div><div class="lname">Flood Risk Zones</div></div>
+          <div class="toggle" id="toggle-flood"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER MAP -->
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="draw-tooltip" id="draw-tooltip">Click to place points · Double-click to finish zone</div>
+
+    <div class="map-hud-tl">
+      <div class="hud-box">
+        <div class="hud-title">Karachi Metro</div>
+        <div class="hud-row">
+          <div><div class="hud-val">16.1M</div><div class="hud-sub">population</div></div>
+          <div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch"></div>
+          <div><div class="hud-val" style="color:#10B981" id="hud-pol">0</div><div class="hud-sub">policies active</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-hud-tr">
+      <div class="mode-sel">
+        <button class="mode-btn active" id="mode-select" onclick="setMapMode('select',this)">SELECT</button>
+        <button class="mode-btn" id="mode-draw" onclick="setMapMode('draw',this)">DRAW ZONE</button>
+        <button class="mode-btn" id="mode-measure" onclick="setMapMode('measure',this)">MEASURE</button>
+      </div>
+      <div class="sim-badge">
+        <div class="sim-dot"></div>
+        <div class="sim-txt">SIM RUNNING · T+<span id="simtime">00:00:00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="rp-head">
+      <div class="rp-title">Simulation Engine</div>
+      <div class="rp-sub" id="engine-sub-label">URBANPOLICY AI · CONNECT ENGINE BELOW</div>
+    </div>
+    <div class="rp-body" id="rp-body">
+      <div class="empty-state">
+        <div class="empty-ico">◈</div>
+        <div class="empty-txt">SELECT A POLICY TO<br>BEGIN SIMULATION</div>
+      </div>
+    </div>
+
+    <!-- AI ENGINE PANEL -->
+    <div class="chat-section">
+      <!-- Backend selector + connection -->
+      <div class="ai-config-bar">
+        <button class="ai-backend-btn active" id="btn-backend-ollama" onclick="setBackend('ollama')">OLLAMA</button>
+        <button class="ai-backend-btn" id="btn-backend-anthropic" onclick="setBackend('anthropic')">ANTHROPIC</button>
+        <input class="ai-conn-input" id="ai-conn-input" placeholder="Ollama: http://localhost:11434" />
+        <button class="ai-conn-btn" onclick="connectEngine()">CONNECT</button>
+      </div>
+      <div class="chat-head">
+        <div class="chat-ico">◈</div>
+        <div class="chat-label">UrbanPolicy AI</div>
+        <div class="chat-model-badge badge-offline" id="model-badge">OFFLINE</div>
+      </div>
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-msg ai">Connect your Ollama agent or Anthropic API above. Select Ollama and enter your base URL (e.g. http://localhost:11434), then hit CONNECT.</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Ask about Karachi urban policy..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" id="chat-send-btn" onclick="sendChat()">SEND ↗</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 2 — ANALYTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-analytics">
+<div class="analytics-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Analytics Dashboard</div>
+      <div class="section-sub">KARACHI METROPOLITAN — REAL-TIME POLICY PERFORMANCE · <span id="analytics-updated">LAST UPDATED: NOW</span></div>
+    </div>
+    <div class="page-controls" id="analytics-period-ctrl">
+      <button class="ctrl-btn active" onclick="setAnalyticsPeriod('6M',this)">6M</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('1Y',this)">1Y</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('5Y',this)">5Y</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('BASELINE',this)">BASELINE</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-g"><div class="kpi-label">Walkability Score</div><div class="kpi-val" id="kpi-walk">42</div><div class="kpi-change kpi-up" id="kpi-walk-ch">↑ +3.1% vs baseline</div></div>
+    <div class="kpi-card kpi-b"><div class="kpi-label">Transit Coverage</div><div class="kpi-val" id="kpi-transit">38%</div><div class="kpi-change kpi-up" id="kpi-transit-ch">↑ +2.4pp this period</div></div>
+    <div class="kpi-card kpi-a"><div class="kpi-label">Housing Affordability</div><div class="kpi-val" id="kpi-afford">29%</div><div class="kpi-change kpi-down" id="kpi-afford-ch">↓ under pressure</div></div>
+    <div class="kpi-card kpi-r"><div class="kpi-label">AQI (PM2.5 adj.)</div><div class="kpi-val" id="kpi-aqi">61</div><div class="kpi-change kpi-down" id="kpi-aqi-ch">↓ needs intervention</div></div>
+    <div class="kpi-card kpi-p"><div class="kpi-label">Flood Exposure</div><div class="kpi-val" id="kpi-flood">HIGH</div><div class="kpi-change kpi-flat" id="kpi-flood-ch">— 3.2M residents at risk</div></div>
+    <div class="kpi-card kpi-t"><div class="kpi-label">Enacted Policies</div><div class="kpi-val" id="a-ep">0</div><div class="kpi-change kpi-flat">— active simulations</div></div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Karachi Metrics — 12 Month Trend</div>
+      <div class="chart-sub">WALKABILITY · AQI · TRANSIT · AFFORDABILITY</div>
+      <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Policy Impact by Sector</div>
+      <div class="chart-sub">ENACTED POLICY DISTRIBUTION</div>
+      <div class="chart-wrap"><canvas id="chart-donut"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-grid2">
+    <div class="chart-card">
+      <div class="chart-title">Air Quality Index — Karachi Districts</div>
+      <div class="chart-sub">DISTRICT-LEVEL PM2.5 TREND</div>
+      <div class="mini-chart-wrap"><canvas id="chart-carbon"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Housing Unit Pipeline</div>
+      <div class="chart-sub">FORMAL VS KATCHI ABADI UNITS</div>
+      <div class="mini-chart-wrap"><canvas id="chart-housing"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Modal Share</div>
+      <div class="chart-sub">BUS · RICKSHAW · PRIVATE · WALK</div>
+      <div class="mini-chart-wrap"><canvas id="chart-modal"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Policy Impact Registry</div>
+    <div class="chart-sub">ALL SIMULATED POLICIES WITH PROJECTED KARACHI OUTCOMES</div>
+    <table class="policy-table" style="margin-top:10px" id="impact-registry">
+      <thead>
+        <tr><th>Policy</th><th>Category</th><th>Status</th><th>Walkability Δ</th><th>AQI Δ</th><th>Housing Δ</th><th>Carbon Δ</th><th>Impact</th></tr>
+      </thead>
+      <tbody id="registry-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 3 — SCENARIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-scenarios">
+<div class="scenarios-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Scenario Planning</div>
+      <div class="section-sub">COMPOUND POLICY SIMULATIONS · KARACHI METRO AREA</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn" onclick="showScForm()">+ NEW SCENARIO</button>
+      <button class="ctrl-btn active">ALL SCENARIOS</button>
+    </div>
+  </div>
+
+  <div class="sc-grid" id="sc-grid"></div>
+
+  <!-- Custom Scenario Form -->
+  <div class="sc-form-card" id="sc-form" style="display:none">
+    <div class="sc-form-title">Build Custom Scenario</div>
+    <div class="sc-form-sub">DEFINE PARAMETERS · CONFIGURE POLICIES · SUBMIT FOR AI SIMULATION</div>
+    <div class="form-grid">
+      <div class="form-group"><div class="form-label">Scenario Name</div><input class="form-input" id="sc-name-input" placeholder="e.g. Karachi Green Growth 2035"></div>
+      <div class="form-group"><div class="form-label">Time Horizon</div>
+        <select class="form-select" id="sc-horizon">
+          <option>2 Years</option><option>5 Years</option><option selected>10 Years</option><option>20 Years</option><option>30 Years</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Primary Objective</div>
+        <select class="form-select" id="sc-objective">
+          <option>Walkability</option><option>Air Quality</option><option>Housing Affordability</option><option>Flood Resilience</option><option>Economic Growth</option><option>Equity & Inclusion</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Budget Cap (PKR Bn)</div><input class="form-input" id="sc-budget" type="number" placeholder="50" min="0"></div>
+      <div class="form-group"><div class="form-label">Target Districts</div>
+        <select class="form-select" id="sc-districts" multiple style="height:65px">
+          <option>Saddar</option><option>Clifton</option><option>Korangi</option><option>Malir</option><option>Gulshan</option><option>Surjani</option><option>Lyari</option><option>Orangi</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Policy Cluster</div>
+        <select class="form-select" id="sc-policies" multiple style="height:65px">
+          <option>Mixed-Use Zoning</option><option>Coastal Green Corridor</option><option>BRT Orange Line</option><option>TOD Nodes</option><option>Katchi Abadi Reg.</option><option>Net-Zero Industry</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><div class="form-label">Scenario Description & Goals</div><textarea class="form-textarea" id="sc-desc-input" placeholder="Describe the policy goals, target outcomes, key constraints and conditions for this Karachi scenario..."></textarea></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
+      <div class="slider-group"><div class="form-label">Population Growth Priority</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="65" id="sl-pop" oninput="document.getElementById('slv-pop').textContent=this.value+'%'"><span class="slider-val" id="slv-pop">65%</span></div></div>
+      <div class="slider-group"><div class="form-label">Environmental Weight</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="70" id="sl-env" oninput="document.getElementById('slv-env').textContent=this.value+'%'"><span class="slider-val" id="slv-env">70%</span></div></div>
+      <div class="slider-group"><div class="form-label">Equity & Inclusion</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="85" id="sl-eq" oninput="document.getElementById('slv-eq').textContent=this.value+'%'"><span class="slider-val" id="slv-eq">85%</span></div></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="hideScForm()">Cancel</button>
+      <button class="btn-secondary" onclick="saveDraftScenario()">Save Draft</button>
+      <button class="btn-primary" onclick="submitScenario()">▶ SUBMIT FOR SIMULATION</button>
+    </div>
+    <div class="sc-submit-out" id="sc-submit-out"></div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 4 — REPORTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-reports">
+<div class="reports-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Reports & Documentation</div>
+      <div class="section-sub">GENERATE · REVIEW · EXPORT — KARACHI PLANNING AUTHORITY</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn active" onclick="openReportModal()">+ GENERATE REPORT</button>
+    </div>
+  </div>
+
+  <div class="report-gen-card">
+    <div class="sc-form-title">Quick Report Generator</div>
+    <div class="sc-form-sub">GENERATE AN AI-POWERED REPORT FOR ANY ENACTED POLICY OR SCENARIO</div>
+    <div class="report-form-grid">
+      <div class="form-group"><div class="form-label">Report Title</div><input class="form-input" id="report-title-input" placeholder="Q1 2025 Karachi Policy Impact Assessment"></div>
+      <div class="form-group"><div class="form-label">Report Type</div>
+        <select class="form-select" id="report-type-sel">
+          <option>Impact Assessment</option><option>Cost-Benefit Analysis</option><option>Equity Audit</option><option>Environmental Report</option><option>Executive Summary</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Period</div>
+        <select class="form-select" id="report-period">
+          <option>Q1 2025</option><option>Q2 2025</option><option>H1 2025</option><option>Full Year 2025</option>
+        </select>
+      </div>
+      <div class="form-group" style="align-self:end"><button class="btn-primary" style="width:100%;padding:7px" onclick="generateReport()">▶ GENERATE WITH AI</button></div>
+    </div>
+    <div class="report-gen-out" id="report-gen-out"></div>
+  </div>
+
+  <div class="report-list" id="report-list"></div>
+
+  <div class="report-preview" id="report-preview" style="display:none">
+    <div class="report-preview-header">
+      <div>
+        <div class="rph-title" id="rp-title-display">Report Title</div>
+        <div class="rph-meta" id="rp-meta-display">META</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="r-btn" onclick="document.getElementById('report-preview').style.display='none'">CLOSE</button>
+        <button class="r-btn primary" onclick="exportReport()">EXPORT PDF</button>
+        <button class="r-btn primary" onclick="generateLLMSection()">◈ AI ANALYSIS</button>
+      </div>
+    </div>
+    <div class="report-content-preview">
+      <div>
+        <div class="rcp-section"><div class="rcp-sec-title">Executive Summary</div><div class="rcp-text" id="rp-exec-text"></div></div>
+        <div class="rcp-section"><div class="rcp-sec-title">Key Findings</div><div class="rcp-text" id="rp-findings-text"></div></div>
+        <div class="rcp-section"><div class="rcp-sec-title">AI-Generated Policy Narrative</div><div class="llm-report-out" id="llm-report-out">Click "◈ AI ANALYSIS" to generate a live analysis.</div></div>
+      </div>
+      <div>
+        <div class="rcp-section"><div class="rcp-sec-title">Performance Metrics</div><div class="rcp-metric-list-wrap" id="rp-metrics-list"></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+</div><!-- /workspace -->
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-label">WALKABILITY</span><span class="stat-val sv-g" id="s-walk">42</span></div>
+  <div class="stat-item"><span class="stat-label">AQI</span><span class="stat-val sv-a" id="s-aqi">61</span></div>
+  <div class="stat-item"><span class="stat-label">AFFORDABILITY</span><span class="stat-val sv-a" id="s-haf">29%</span></div>
+  <div class="stat-item"><span class="stat-label">TRANSIT COV.</span><span class="stat-val sv-b" id="s-tc">38%</span></div>
+  <div class="stat-item"><span class="stat-label">CARBON</span><span class="stat-val sv-g" id="s-co">-4%</span></div>
+  <div class="stat-item"><span class="stat-label">ENACTED</span><span class="stat-val sv-g" id="s-ep">0</span></div>
+  <div class="stat-item"><span class="stat-label">SIM T+</span><span class="stat-val" id="s-time">00:00:00</span></div>
+  <div class="stat-item"><span class="stat-label">ENGINE</span><span class="stat-val" id="s-engine">OFFLINE</span></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: Report Details -->
+<div class="modal-backdrop" id="report-modal">
+  <div class="modal">
+    <div class="modal-title">New Report</div>
+    <div class="modal-sub">KARACHI METROPOLITAN PLANNING AUTHORITY · CONFIDENTIAL</div>
+    <button class="modal-close" onclick="closeModal('report-modal')">✕</button>
+    <div class="modal-body">
+      <div class="form-group"><div class="form-label">Report Title</div><input class="form-input" id="modal-report-title" placeholder="e.g. BRT Orange Line Impact Assessment"></div>
+      <div class="form-group"><div class="form-label">Type</div>
+        <select class="form-select" id="modal-report-type">
+          <option>Impact Assessment</option><option>Cost-Benefit Analysis</option><option>Equity Audit</option><option>Environmental Report</option><option>Executive Summary</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Author / Department</div><input class="form-input" id="modal-author" placeholder="e.g. Infrastructure Planning Dept."></div>
+      <div class="form-group"><div class="form-label">Notes</div><textarea class="form-textarea" id="modal-notes" placeholder="Additional context or instructions for the AI report generator..." style="min-height:60px"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('report-modal')">Cancel</button>
+      <button class="btn-primary" onclick="createReport()">CREATE REPORT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═════════════════════════════════════
+   STATE
+═════════════════════════════════════ */
+let aiBackend     = 'ollama';         // 'ollama' | 'anthropic'
+let ollamaBaseUrl = 'http://localhost:11434';
+let ollamaModel   = 'llama3';        // user's finetuned model name
+let anthropicKey  = '';
+let engineOnline  = false;
+
+let enactedPolicies = new Set();
+let enactedCount    = 0;
+let currentPolicy   = null;
+let chatHistory     = [];
+let simSecs         = 0;
+
+let mapMode         = 'select';       // select | draw | measure
+let drawPoints      = [];
+let drawMarkers     = [];
+let drawnZones      = [];
+let measurePoints   = [];
+let measureLine     = null;
+let measureMarkers  = [];
+
+/* layer group references */
+const mapLayers = {};
+let layerState  = { greenSpaces: true, congestion: true, zoning: true, density: false, transit: true, flood: false };
+
+/* chart refs for live update */
+let chartTrend, chartDonut, chartCarbon, chartHousing, chartModal;
+let chartsInit = false;
+
+/* reports store */
+let reportStore = [
+  { id:'r1', name:'Karachi Annual Urban Review 2024', type:'Impact Assessment', date:'12 Jan 2025', pages:52, author:'Chief Planning Officer', status:'ready',
+    exec:'This report presents a comprehensive assessment of urban policy performance across the Karachi Metropolitan Area for 2024. Significant infrastructure stress was observed across transport, housing, and environmental sectors.',
+    findings:'Transit coverage sits at 38%, well below the 60% target. AQI in Korangi and Lyari districts averaged 78 — critically unhealthy. Katchi abadi population expanded by 340,000 residents despite regularisation efforts. BRT ridership on existing lines grew 18% year-on-year.',
+    metrics:[{k:'Walkability',v:'42 / 100',c:'#10B981'},{k:'AQI (Karachi avg)',v:'61',c:'#EF4444'},{k:'Transit Coverage',v:'38%',c:'#60A5FA'},{k:'Housing Affordability',v:'29%',c:'#F59E0B'},{k:'Carbon Trend',v:'-4%',c:'#10B981'},{k:'BRT Ridership',v:'+18%',c:'#10B981'}]},
+  { id:'r2', name:'Coastal Green Corridor — EIA', type:'Environmental Report', date:'3 Feb 2025', pages:38, author:'Sustainability Dept.', status:'ready',
+    exec:'Environmental impact assessment for the proposed Coastal Green Corridor along Clifton Beach, Keamari, and Manora Island. The corridor has the potential to address urban heat island effects and provide climate resilience for coastal communities.',
+    findings:'Coastal temperature in pilot areas was 3.1°C above inland benchmarks. Mangrove coverage at Keamari has declined 42% since 2010. The proposed 8km corridor would restore 240 hectares of coastal vegetation, improving biodiversity and acting as a storm buffer for 1.2M coastal residents.',
+    metrics:[{k:'Heat Reduction (proj.)',v:'-2.1°C',c:'#10B981'},{k:'Green Cover Gain',v:'+240ha',c:'#10B981'},{k:'Coastal Residents',v:'1.2M',c:'#60A5FA'},{k:'Mangrove Recovery',v:'+38%',c:'#10B981'}]},
+  { id:'r3', name:'BRT Orange Line — Cost-Benefit', type:'Cost-Benefit Analysis', date:'18 Mar 2025', pages:26, author:'Transport Planning Unit', status:'generating',
+    exec:'Cost-benefit analysis for the proposed BRT Orange Line extension from Surjani Town to Port Qasim, covering a 42km corridor serving approximately 800,000 daily commuters.',
+    findings:'Capital cost estimated at PKR 48 billion. Benefit-cost ratio projected at 3.4x over 20-year horizon. Journey time savings of 22 minutes per trip. Expected to divert 280,000 private vehicle trips per day, reducing fuel import costs significantly.',
+    metrics:[{k:'Capital Cost',v:'PKR 48B',c:'#F59E0B'},{k:'BCR (20yr)',v:'3.4x',c:'#10B981'},{k:'Daily Riders',v:'800K',c:'#60A5FA'},{k:'Journey Time Saving',v:'-22min',c:'#10B981'}]},
+];
+
+const SYSTEM_PROMPT = `You are UrbanPolicy AI, an expert urban planning simulation agent specialising in Karachi, Pakistan. You assist policymakers at the Karachi Metropolitan Planning Authority with data-driven insights about urban development, infrastructure, housing, transport, environmental resilience, and social equity in the Karachi context.
+
+Key Karachi facts for reference: Population 16.1M (metro), rapid informal settlement growth (Katchi Abadis), severe flooding risk, AQI challenges especially in industrial zones (Korangi, SITE), BRT Green Line operational, major districts: Saddar, Clifton, Gulshan, Korangi, Malir, Lyari, Orangi, Surjani, Keamari.
+
+When analysing policies: give specific projections, reference Karachi districts, highlight equity and flooding considerations, and provide practical implementation pathways. Be concise and evidence-based.`;
+
+/* ═════════════════════════════════════
+   POLICY DATA — KARACHI-SPECIFIC
+═════════════════════════════════════ */
+const policyData = {
+  1:{ name:'Mixed-Use Zoning Reform', color:'#10B981',
+    factors:{ ws:{label:'Walk Score',val:'+16pts',dir:'up',trend:'42→58 projected'},
+      density:{label:'Pop. Density',val:'+28%',dir:'up',trend:'Gulshan+Saddar'},
+      retail:{label:'Economic Lift',val:'+PKR42B',dir:'up',trend:'Annual activity'},
+      displacement:{label:'Displacement Risk',val:'Med',dir:'neutral',trend:'Katchi abadis affected'} },
+    todos:[
+      {txt:'Rezone Saddar Commercial Triangle to MX-3 mixed-use classification',pri:'h',done:false,zone:'Saddar District'},
+      {txt:'Update Clifton Block 4–9 height limits: 4→12 floors max',pri:'h',done:false,zone:'Zoning Code Sec.7'},
+      {txt:'Mandate active ground-floor uses on I.I. Chundrigar Road',pri:'m',done:true,zone:'Design guidelines ✓'},
+      {txt:'Commission displacement assessment for 14 affected union councils',pri:'m',done:false,zone:'UC 4,7,12,18+'},
+      {txt:'Establish affordable set-aside: 25% units ≤ PKR 4,500/sqft',pri:'l',done:false,zone:'All parcels'},
+      {txt:'Update GIS cadastral layer with new zone boundaries (OSM sync)',pri:'h',done:false,zone:'KMC GIS portal'},
+    ],
+    llmCtx:'Mixed-Use Zoning Reform for Saddar, Clifton, and Gulshan districts in Karachi. Targets walk score improvement from 42 to 58, ~6,200 new formal housing units, 28% density increase. Major concern: displacement of katchi abadi residents in transition zones.',
+    zones:[[24.8607,67.0100],[24.8650,67.0200],[24.8610,67.0250],[24.8560,67.0180]],
+  },
+  2:{ name:'Coastal Green Corridor', color:'#3B82F6',
+    factors:{ green:{label:'Green Cover',val:'+240ha',dir:'up',trend:'Clifton→Manora'},
+      flood:{label:'Flood Buffer',val:'+1.2M',dir:'up',trend:'Residents protected'},
+      aqi:{label:'AQI Improvement',val:'+12pts',dir:'up',trend:'Coastal zone'},
+      temp:{label:'Heat Island',val:'-2.1°C',dir:'up',trend:'Coastal cooling effect'} },
+    todos:[
+      {txt:'Designate 8km Clifton–Keamari coastline as GC-1 protected corridor',pri:'h',done:false,zone:'Clifton/Keamari'},
+      {txt:'Plant 180,000 mangrove propagules across Keamari mudflats',pri:'h',done:false,zone:'Phase 1 – Keamari'},
+      {txt:'Restore 240ha Manora Island coastal vegetation',pri:'m',done:false,zone:'Phase 2 – Manora'},
+      {txt:'Install bioswale drainage along Sea View Boulevard',pri:'m',done:true,zone:'Engineering approved ✓'},
+      {txt:'Restrict hard construction within 100m of Mean High Water Mark',pri:'l',done:false,zone:'KBCA code update'},
+    ],
+    llmCtx:'Coastal Green Corridor for Karachi Clifton-Keamari-Manora coastline, 8km stretch, 240ha mangrove/vegetation restoration, protecting 1.2M coastal residents from flood surge, reducing coastal temperature by 2.1°C, improving AQI by 12 points in coastal zone.',
+    zones:[[24.8200,66.9900],[24.8250,66.9980],[24.8190,67.0060],[24.8140,66.9990]],
+  },
+  3:{ name:'BRT Orange Line Expansion', color:'#F59E0B',
+    factors:{ riders:{label:'Daily Riders',val:'800K',dir:'up',trend:'Surjani→Port Qasim'},
+      vmt:{label:'VMT Reduction',val:'-18%',dir:'up',trend:'42km corridor'},
+      time:{label:'Journey Time',val:'-22min',dir:'up',trend:'Average commute'},
+      cost:{label:'Capital Cost',val:'PKR48B',dir:'neutral',trend:'BCR: 3.4x'} },
+    todos:[
+      {txt:'Complete geotechnical survey for Surjani–Malir segment (18km)',pri:'h',done:false,zone:'Phase 1 corridor'},
+      {txt:'Acquire ROW for 42 stations along N-5 / Shahrah-e-Faisal alignment',pri:'h',done:true,zone:'NTRC approved ✓'},
+      {txt:'Issue PKR 48B Green Sukuk bond for BRT financing',pri:'m',done:false,zone:'Finance Division'},
+      {txt:'Design multimodal hubs at Malir Halt and Korangi Crossing',pri:'m',done:false,zone:'Junction redesign'},
+      {txt:'Launch feeder rickshaw integration scheme at 12 terminus stations',pri:'l',done:false,zone:'Last-mile plan'},
+    ],
+    llmCtx:'BRT Orange Line Expansion, Karachi, 42km Surjani Town to Port Qasim via Malir. 800,000 daily riders, PKR 48 billion capital, BCR 3.4x over 20 years, 22-minute journey time saving, 18% VMT reduction on corridor.',
+    zones:[[24.9800,67.0600],[24.9780,67.0700],[24.9760,67.0660],[24.9785,67.0560]],
+  },
+  4:{ name:'Transit-Oriented Development Nodes', color:'#8B5CF6',
+    factors:{ units:{label:'Housing Units',val:'+18,400',dir:'up',trend:'Within 600m of BRT'},
+      commute:{label:'Avg Commute',dir:'up',val:'-19min',trend:'Metro-wide'},
+      density:{label:'Node Density',val:'+4.2 FAR',dir:'up',trend:'8 nodes'},
+      jobs:{label:'Job Access',val:'+420K',dir:'up',trend:'30-min transit shed'} },
+    todos:[
+      {txt:'Upzone 8 BRT node catchment areas (600m radius) to MX-4 high density',pri:'h',done:false,zone:'8 TOD nodes'},
+      {txt:'Require min 4.2 FAR within 400m of Gulshan-e-Iqbal & Malir nodes',pri:'h',done:false,zone:'FAR code update'},
+      {txt:'Mandate 1,200 affordable units per node (≤PKR 4,200/sqft)',pri:'m',done:false,zone:'Inclusionary req.'},
+      {txt:'Cap surface parking: max 0.5 spaces/unit in all new TOD dev.',pri:'m',done:true,zone:'KBCA circular ✓'},
+      {txt:'Fast-track KMC approval for TOD-compliant developments ≤90 days',pri:'l',done:false,zone:'Permit reform'},
+    ],
+    llmCtx:'TOD Nodes around 8 BRT/Circular Railway stops in Karachi, upzoning 600m catchment areas, 18,400 new housing units, 19-minute commute reduction, 420,000 additional jobs within 30-min transit reach.',
+    zones:[[24.9200,67.0800],[24.9230,67.0880],[24.9200,67.0920],[24.9165,67.0845]],
+  },
+  5:{ name:'Katchi Abadi Regularisation', color:'#EF4444',
+    factors:{ units:{label:'Regularised Units',val:'320K',dir:'up',trend:'600+ settlements'},
+      tenure:{label:'Tenure Security',dir:'up',val:'HIGH',trend:'Legal titles issued'},
+      services:{label:'Services Access',val:'+68%',dir:'up',trend:'Water/sanitation'},
+      cost:{label:'Public Cost',val:'PKR82B',dir:'down',trend:'5yr programme'} },
+    todos:[
+      {txt:'Complete satellite-survey mapping of all 628 katchi abadis',pri:'h',done:false,zone:'City-wide survey'},
+      {txt:'Issue regularisation ordinance under Sindh KA Act 2018 Amendment',pri:'h',done:false,zone:'Provincial legislation'},
+      {txt:'Launch computerised land record system for 320,000 plots',pri:'m',done:false,zone:'SLRB integration'},
+      {txt:'Extend water/sewer connections to 180 priority settlements',pri:'m',done:false,zone:'KWSB priority list'},
+      {txt:'Anti-eviction fund: PKR 4B for displaced Lyari Expressway families',pri:'h',done:true,zone:'SBCA budget ✓'},
+    ],
+    llmCtx:'Katchi Abadi Regularisation across 628 informal settlements in Karachi, covering 320,000 plots and ~2.1 million residents. Legal title issuance, services extension, PKR 82 billion 5-year programme.',
+    zones:[[24.8900,66.9800],[24.8950,66.9890],[24.8910,66.9940],[24.8855,66.9860]],
+  },
+  6:{ name:'Net-Zero Industry Zone', color:'#8B5CF6',
+    factors:{ carbon:{label:'Carbon Reduction',val:'-38%',dir:'up',trend:'vs 2020 baseline'},
+      aqi:{label:'AQI Korangi',val:'+22pts',dir:'up',trend:'Industrial zone'},
+      energy:{label:'Energy Efficiency',val:'+31%',dir:'up',trend:'Industrial stock'},
+      jobs:{label:'Green Jobs',val:'+11,200',dir:'up',trend:'Clean tech sector'} },
+    todos:[
+      {txt:'Mandate net-zero building code for all new SITE C industrial units',pri:'h',done:false,zone:'SITE C'},
+      {txt:'Install 32MW rooftop solar on Korangi Industrial Area factories',pri:'h',done:false,zone:'Korangi'},
+      {txt:'Commission district energy hub serving 800 industrial units',pri:'m',done:false,zone:'KITE hub design'},
+      {txt:'Phase out Sui gas boilers in Korangi: 2029 deadline',pri:'m',done:false,zone:'SSGCL agreement'},
+      {txt:'EV charging mandate: 1 per 10 parking spaces in industrial parks',pri:'l',done:true,zone:'NEPRA circular ✓'},
+    ],
+    llmCtx:'Net-Zero Industry Zone for SITE C and Korangi Industrial Area in Karachi, targeting 38% carbon reduction vs 2020, 22-point AQI improvement in industrial zones, 32MW solar, 11,200 green jobs, PKR 28 billion investment.',
+    zones:[[24.8400,67.0900],[24.8450,67.1000],[24.8420,67.1050],[24.8360,67.0970]],
+  },
+};
+
+/* Karachi policy impact registry data */
+const registryData = [
+  { name:'Mixed-Use Zoning Reform', cat:'Land Use', catCls:'tag-g', walkDelta:'+16pts', aqiDelta:'+4pts', housingDelta:'+6,200 units', carbonDelta:'-6%', impact:78 },
+  { name:'Coastal Green Corridor', cat:'Land Use', catCls:'tag-b', walkDelta:'+8pts', aqiDelta:'+12pts', housingDelta:'—', carbonDelta:'-14%', impact:72 },
+  { name:'BRT Orange Line', cat:'Transport', catCls:'tag-a', walkDelta:'+14pts', aqiDelta:'+9pts', housingDelta:'—', carbonDelta:'-18%', impact:80 },
+  { name:'TOD Nodes', cat:'Transport', catCls:'tag-b', walkDelta:'+18pts', aqiDelta:'+7pts', housingDelta:'+18,400 units', carbonDelta:'-22%', impact:90 },
+  { name:'Katchi Abadi Reg.', cat:'Housing', catCls:'tag-r', walkDelta:'+6pts', aqiDelta:'+3pts', housingDelta:'320K regularised', carbonDelta:'-3%', impact:62 },
+  { name:'Net-Zero Industry', cat:'Environment', catCls:'tag-g', walkDelta:'+5pts', aqiDelta:'+22pts', housingDelta:'—', carbonDelta:'-38%', impact:85 },
+];
+
+/* Scenario cards */
+const scenarioCards = [
+  { id:1, cls:'sc-blue', name:'Karachi Compact City Vision', desc:'Combine BRT expansion, mixed-use zoning, and TOD nodes to create walkable 15-minute neighbourhoods across 5 major districts by 2035.',
+    tags:['Land Use','Transport','3 Policies','10yr'], metrics:[{l:'Walkability Gain',v:'+38pts',c:'#10B981'},{l:'VMT Reduction',v:'-34%',c:'#10B981'},{l:'New Housing',v:'+24K',c:'#60A5FA'},{l:'Capital Cost',v:'PKR 96B',c:'#F59E0B'}],
+    llmCtx:'Karachi Compact City Vision combining BRT Orange Line, Mixed-Use Zoning, and TOD Nodes.' },
+  { id:2, cls:'sc-green', name:'Climate Resilience 2040', desc:'Coastal green corridor, net-zero industry zone, and mangrove restoration to cut carbon 40% and protect 3M residents from worsening monsoon floods.',
+    tags:['Environment','Climate','2 Policies','15yr'], metrics:[{l:'Carbon Cut',v:'-40%',c:'#10B981'},{l:'Flood Protection',v:'3M pop.',c:'#10B981'},{l:'AQI Gain',v:'+28pts',c:'#60A5FA'},{l:'Mangroves',v:'+480ha',c:'#10B981'}],
+    llmCtx:'Karachi Climate Resilience 2040 combining Coastal Green Corridor and Net-Zero Industry Zone.' },
+  { id:3, cls:'sc-amber', name:'Housing Equity Response', desc:'Mass Katchi Abadi regularisation, affordable TOD housing mandates, and land value capture to deliver 400,000 secure homes by 2030.',
+    tags:['Housing','Equity','2 Policies','5yr'], metrics:[{l:'Secure Units',v:'400K',c:'#10B981'},{l:'Eviction Risk',v:'-80%',c:'#10B981'},{l:'Public Cost',v:'PKR 112B',c:'#F59E0B'},{l:'Social Return',v:'5.1x',c:'#10B981'}],
+    llmCtx:'Karachi Housing Equity Response combining Katchi Abadi Regularisation and TOD Nodes affordable mandate.' },
+  { id:4, cls:'sc-red', name:'Zero-Congestion Corridor', desc:'BRT, rickshaw feeder integration, and cargo route optimisation to eliminate Shahrah-e-Faisal peak gridlock and reduce average commute to 35 minutes.',
+    tags:['Transport','Mobility','3 Policies','3yr'], metrics:[{l:'Traffic Reduction',v:'-48%',c:'#10B981'},{l:'BRT Ridership',v:'+1.1M',c:'#60A5FA'},{l:'Commute Time',v:'35min avg',c:'#10B981'},{l:'Fuel Savings',v:'PKR 22B/yr',c:'#F59E0B'}],
+    llmCtx:'Karachi Zero-Congestion Corridor focusing on BRT and Shahrah-e-Faisal corridor.' },
+  { id:5, cls:'sc-purple', name:'Smart Karachi Initiative', desc:'Sensor networks, AI traffic management, digital GIS twin, and open data APIs to modernise city governance across all 7 towns.',
+    tags:['Technology','Governance','4 Policies','8yr'], metrics:[{l:'Service Efficiency',v:'+42%',c:'#10B981'},{l:'Response Time',v:'-38%',c:'#10B981'},{l:'Data Endpoints',v:'2,400+',c:'#60A5FA'},{l:'Capex',v:'PKR 18B',c:'#F59E0B'}],
+    llmCtx:'Smart Karachi Initiative - digital city twin and sensor network governance.' },
+  { id:6, cls:'sc-teal', name:'Inclusive Growth Compact', desc:'All six policies enacted simultaneously as a comprehensive urban renewal strategy for Karachi — every sector, every district, 25-year horizon.',
+    tags:['Comprehensive','All Sectors','6 Policies','25yr'], metrics:[{l:'Overall Score',v:'+74pts',c:'#10B981'},{l:'New Residents',v:'+2.1M',c:'#60A5FA'},{l:'Total Invest.',v:'PKR 280B',c:'#F59E0B'},{l:'Social Return',v:'8.2x',c:'#10B981'}],
+    llmCtx:'Karachi Inclusive Growth Compact - all 6 policies enacted simultaneously.' },
+];
+
+/* ═════════════════════════════════════
+   INIT
+═════════════════════════════════════ */
+function init() {
+  buildRegistryTable();
+  buildScenarioCards();
+  buildReportList();
+  setTimeout(() => renderPolicyDetail(1), 400);
+}
+
+/* ═════════════════════════════════════
+   CLOCK & TIMER
+═════════════════════════════════════ */
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8)+' PKT';
+}
+setInterval(updateClock,1000); updateClock();
+
+setInterval(()=>{
+  simSecs++;
+  const h=Math.floor(simSecs/3600).toString().padStart(2,'0');
+  const m=Math.floor((simSecs%3600)/60).toString().padStart(2,'0');
+  const s=(simSecs%60).toString().padStart(2,'0');
+  const t=`${h}:${m}:${s}`;
+  document.getElementById('simtime').textContent=t;
+  document.getElementById('s-time').textContent=t;
+},1000);
+
+/* ═════════════════════════════════════
+   TOAST / MODAL
+═════════════════════════════════════ */
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),3000);
+}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+/* ═════════════════════════════════════
+   PAGE NAVIGATION
+═════════════════════════════════════ */
+function showPage(name,tab) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  tab.classList.add('active');
+  if(name==='analytics') { setTimeout(initCharts,50); }
+}
+
+/* ═════════════════════════════════════
+   OSM MAP — KARACHI
+═════════════════════════════════════ */
+// Karachi centre: 24.8607° N, 67.0011° E
+const map = L.map('map',{zoomControl:false}).setView([24.8607,67.0011],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19
+}).addTo(map);
+L.control.zoom({position:'bottomright'}).addTo(map);
+
+/* ─── GIS LAYER DATA — Karachi ─── */
+function buildMapLayers() {
+  /* Green Spaces — parks & coastal */
+  const greenData = [
+    { coords:[[24.8137,66.9889],[24.8165,66.9920],[24.8148,66.9950],[24.8118,66.9925]], label:'Hill Park' },
+    { coords:[[24.8247,67.0280],[24.8268,67.0310],[24.8252,67.0338],[24.8228,67.0305]], label:'Safari Park' },
+    { coords:[[24.8310,67.0200],[24.8335,67.0235],[24.8318,67.0260],[24.8290,67.0230]], label:'Bagh Ibn Qasim' },
+  ];
+  mapLayers.greenSpaces = L.layerGroup(greenData.map(d=>
+    L.polygon(d.coords,{color:'#10B981',fillColor:'#10B981',fillOpacity:0.22,weight:1.5})
+     .bindPopup(`<b style="font-family:monospace;font-size:11px">🌿 ${d.label}</b><br><span style="font-size:10px">Green Space Layer</span>`)
+  )).addTo(map);
+
+  /* Congestion Heat — major arteries */
+  const congData = [
+    { path:[[24.9200,67.0300],[24.9000,67.0300],[24.8800,67.0200],[24.8600,67.0100]], label:'Shahrah-e-Faisal', level:'CRITICAL' },
+    { path:[[24.8700,67.0100],[24.8700,66.9900],[24.8600,66.9700]], label:'M.A. Jinnah Road', level:'HIGH' },
+    { path:[[24.9300,67.0800],[24.9000,67.0700],[24.8800,67.0700]], label:'University Road', level:'HIGH' },
+  ];
+  mapLayers.congestion = L.layerGroup(congData.map(d=>
+    L.polyline(d.path,{color: d.level==='CRITICAL'?'#EF4444':'#F59E0B',weight:5,opacity:0.65,dashArray: d.level==='CRITICAL'?null:'8 4'})
+     .bindPopup(`<b style="font-family:monospace;font-size:11px">🚦 ${d.label}</b><br><span style="font-size:10px;color:${d.level==='CRITICAL'?'#EF4444':'#F59E0B'}">Congestion: ${d.level}</span>`)
+  )).addTo(map);
+
+  /* Zoning Districts */
+  const zoneData = [
+    { coords:[[24.8556,67.0140],[24.8620,67.0200],[24.8600,67.0280],[24.8530,67.0250],[24.8510,67.0160]], label:'Saddar Commercial', color:'#2563EB' },
+    { coords:[[24.8150,66.9980],[24.8200,67.0060],[24.8175,67.0120],[24.8120,67.0080],[24.8100,67.0000]], label:'Clifton Residential', color:'#8B5CF6' },
+    { coords:[[24.9020,67.0680],[24.9080,67.0780],[24.9050,67.0840],[24.8990,67.0790],[24.8960,67.0700]], label:'Gulshan Commercial', color:'#06B6D4' },
+    { coords:[[24.8400,67.0850],[24.8460,67.0960],[24.8430,67.1020],[24.8360,67.0970],[24.8330,67.0880]], label:'Korangi Industrial', color:'#F59E0B' },
+  ];
+  mapLayers.zoning = L.layerGroup(zoneData.map(d=>
+    L.polygon(d.coords,{color:d.color,fillColor:d.color,fillOpacity:0.12,weight:1.5,dashArray:'5 4'})
+     .bindPopup(`<b style="font-family:monospace;font-size:11px">🏙️ ${d.label}</b><br><span style="font-size:10px">Zoning District</span>`)
+  )).addTo(map);
+
+  /* Density Overlay — heat circles */
+  const densityPts = [
+    [24.8607,67.0011,28000,'Saddar (Very High)'],[24.9200,67.0700,22000,'Gulshan (High)'],
+    [24.8900,66.9700,32000,'Lyari (Very High)'],[24.9500,66.9900,18000,'Orangi (High)'],
+    [24.8600,67.0800,15000,'Korangi (Medium)'],[24.8200,66.9700,12000,'Keamari (Medium)'],
+  ];
+  mapLayers.density = L.layerGroup(densityPts.map(d=>
+    L.circle([d[0],d[1]],{radius:d[2],color:'#EF4444',fillColor:'#EF4444',fillOpacity:0.08,weight:1})
+     .bindPopup(`<b style="font-family:monospace;font-size:11px">📊 ${d[3]}</b><br><span style="font-size:10px">Population Density Overlay</span>`)
+  ));
+
+  /* Transit Nodes — BRT stops + Circular Rwy */
+  const transitNodes = [
+    [24.9405,67.1065,'Surjani BRT Terminus','BRT'],[24.9200,67.0700,'Gulshan-e-Iqbal Hub','BRT'],
+    [24.8925,67.0700,'University Road Station','BRT'],[24.8750,67.0600,'Nipa Chowrangi','BRT'],
+    [24.8607,67.0100,'Saddar Terminal','BRT'],[24.8400,67.0200,'Keamari Ferry Point','FERRY'],
+    [24.9100,67.1400,'Malir City Junction','BRT'],[24.9280,67.0970,'Gulshan Chowrangi','BRT'],
+  ];
+  mapLayers.transit = L.layerGroup(transitNodes.map(d=>{
+    const color = d[3]==='BRT'?'#8B5CF6':'#06B6D4';
+    const marker = L.circleMarker([d[0],d[1]],{radius:7,color:'#fff',fillColor:color,fillOpacity:0.9,weight:2});
+    marker.bindPopup(`<b style="font-family:monospace;font-size:11px">🚌 ${d[2]}</b><br><span style="font-size:10px;color:${color}">${d[3]} Node</span>`);
+    return marker;
+  })).addTo(map);
+
+  /* Flood Risk Zones */
+  const floodData = [
+    { coords:[[24.8700,66.9600],[24.8800,66.9700],[24.8750,66.9800],[24.8650,66.9750],[24.8600,66.9650]], label:'Lyari Riverbed — Critical Flood Risk', risk:'critical' },
+    { coords:[[24.8200,66.9700],[24.8280,66.9800],[24.8250,66.9870],[24.8160,66.9830],[24.8130,66.9720]], label:'Keamari Coastal Zone — High Flood Risk', risk:'high' },
+    { coords:[[24.9000,67.1200],[24.9080,67.1340],[24.9040,67.1420],[24.8960,67.1360],[24.8920,67.1220]], label:'Malir River Floodplain — High Risk', risk:'high' },
+  ];
+  mapLayers.flood = L.layerGroup(floodData.map(d=>
+    L.polygon(d.coords,{color:d.risk==='critical'?'#EF4444':'#F59E0B',fillColor:d.risk==='critical'?'#EF4444':'#F59E0B',fillOpacity:0.18,weight:2,dashArray:'4 3'})
+     .bindPopup(`<b style="font-family:monospace;font-size:11px">🌊 ${d.label}</b>`)
+  ));
+}
+
+buildMapLayers();
+
+/* ─── Toggle Layer Function ─── */
+function toggleLayer(name) {
+  layerState[name] = !layerState[name];
+  const tog = document.getElementById('toggle-'+name);
+  if (tog) tog.classList.toggle('on', layerState[name]);
+  if (!mapLayers[name]) return;
+  if (layerState[name]) { mapLayers[name].addTo(map); }
+  else { map.removeLayer(mapLayers[name]); }
+}
+
+/* ─── Enacted policy zone polygons ─── */
+const activePolygons = {};
+
+/* ─── Map Modes ─── */
+function setMapMode(mode, btn) {
+  mapMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const tooltip = document.getElementById('draw-tooltip');
+
+  if (mode==='draw') {
+    tooltip.style.display='block';
+    tooltip.textContent='Click to place zone vertices · Double-click to finish';
+    map.getContainer().style.cursor='crosshair';
+    // start draw
+    drawPoints=[]; drawMarkers=[];
+    map.on('click', onDrawClick);
+    map.on('dblclick', onDrawFinish);
+  } else {
+    tooltip.style.display='none';
+    map.getContainer().style.cursor='';
+    map.off('click', onDrawClick);
+    map.off('dblclick', onDrawFinish);
+    if (mode==='measure') {
+      tooltip.style.display='block';
+      tooltip.textContent='Click to measure distance · Double-click to finish';
+      map.getContainer().style.cursor='crosshair';
+      measurePoints=[]; measureMarkers=[];
+      if(measureLine){map.removeLayer(measureLine);measureLine=null;}
+      measureMarkers.forEach(m=>map.removeLayer(m));
+      map.on('click', onMeasureClick);
+      map.on('dblclick', onMeasureFinish);
+    } else {
+      map.off('click', onMeasureClick);
+      map.off('dblclick', onMeasureFinish);
+      if(measureLine){map.removeLayer(measureLine);}
+      measureMarkers.forEach(m=>map.removeLayer(m));
+    }
+  }
+}
+
+function onDrawClick(e) {
+  if (mapMode!=='draw') return;
+  drawPoints.push([e.latlng.lat, e.latlng.lng]);
+  const m = L.circleMarker(e.latlng,{radius:4,color:'#2563EB',fillColor:'#2563EB',fillOpacity:0.9}).addTo(map);
+  drawMarkers.push(m);
+  if (drawPoints.length>1) {
+    if (window._drawPreview) map.removeLayer(window._drawPreview);
+    window._drawPreview = L.polyline(drawPoints,{color:'#2563EB',weight:2,dashArray:'5 3',opacity:0.7}).addTo(map);
+  }
+}
+
+function onDrawFinish(e) {
+  if (mapMode!=='draw' || drawPoints.length<3) { showToast('Draw at least 3 points to create a zone'); return; }
+  map.off('click', onDrawClick);
+  map.off('dblclick', onDrawFinish);
+  if(window._drawPreview){map.removeLayer(window._drawPreview);}
+  drawMarkers.forEach(m=>map.removeLayer(m));
+  const poly = L.polygon(drawPoints,{color:'#2563EB',fillColor:'#2563EB',fillOpacity:0.15,weight:2,dashArray:'6 4'})
+    .addTo(map)
+    .bindPopup('<b style="font-family:monospace;font-size:11px">✏️ Custom Zone</b><br><span style="font-size:10px">User-drawn zone · Click to analyse</span>');
+  drawnZones.push(poly);
+  poly.openPopup();
+  showToast('Zone drawn ✓ — click ANALYSE or select another mode');
+  setMapMode('select', document.getElementById('mode-select'));
+}
+
+function onMeasureClick(e) {
+  measurePoints.push([e.latlng.lat, e.latlng.lng]);
+  const m = L.circleMarker(e.latlng,{radius:4,color:'#F59E0B',fillColor:'#F59E0B',fillOpacity:0.9}).addTo(map);
+  measureMarkers.push(m);
+  if(measureLine){map.removeLayer(measureLine);}
+  if(measurePoints.length>1){
+    measureLine = L.polyline(measurePoints,{color:'#F59E0B',weight:2,opacity:0.8}).addTo(map);
+    const dist = measurePoints.reduce((acc,p,i)=>{
+      if(i===0)return 0;
+      return acc+map.distance(measurePoints[i-1],p);
+    },0);
+    document.getElementById('draw-tooltip').textContent=`Distance: ${(dist/1000).toFixed(2)} km · Double-click to finish`;
+  }
+}
+
+function onMeasureFinish(e) {
+  if(measurePoints.length<2)return;
+  const dist = measurePoints.reduce((acc,p,i)=>i===0?0:acc+map.distance(measurePoints[i-1],p),0);
+  showToast(`Measured distance: ${(dist/1000).toFixed(2)} km`);
+  setMapMode('select', document.getElementById('mode-select'));
+}
+
+/* ═════════════════════════════════════
+   POLICY SIMULATION
+═════════════════════════════════════ */
+function selectPolicy(id) {
+  currentPolicy=id;
+  renderPolicyDetail(id);
+}
+
+function enactPolicy(evt,id) {
+  evt.stopPropagation();
+  if(enactedPolicies.has(id)){selectPolicy(id);return;}
+  enactedPolicies.add(id); enactedCount++;
+
+  document.getElementById('badge-'+id).textContent='ENACTED';
+  document.getElementById('badge-'+id).className='pc-badge b-enacted';
+  document.getElementById('btn-'+id).textContent='✓ ENACTED';
+  document.getElementById('btn-'+id).className='enact-btn done';
+  document.getElementById('pc-'+id).classList.add('enacted');
+
+  const epEl = v=>{ const e=document.getElementById(v); if(e)e.textContent=enactedCount; };
+  epEl('s-ep'); epEl('hud-pol'); epEl('a-ep');
+  document.getElementById('enacted-ct').textContent=enactedCount+' ENACTED';
+
+  // Draw policy zone on map
+  const p=policyData[id];
+  if(p.zones && p.zones.length>=3){
+    const poly=L.polygon(p.zones,{color:p.color,fillColor:p.color,fillOpacity:0.18,weight:2,dashArray:'7 4'})
+      .addTo(map)
+      .bindPopup(`<b style="font-family:monospace;font-size:11px">📋 ${p.name}</b><br><span style="font-size:10px;color:${p.color}">ENACTED · Policy Zone Active</span>`);
+    activePolygons[id]=poly;
+    map.panTo(p.zones[0],{animate:true,duration:0.5});
+  }
+
+  updateStats(id);
+  buildRegistryTable(); // refresh with enacted status
+  showToast('✓ Policy enacted: '+p.name);
+  selectPolicy(id);
+}
+
+function renderPolicyDetail(id) {
+  const p=policyData[id];
+  const enacted=enactedPolicies.has(id);
+  const factorBoxes=Object.values(p.factors).map(f=>`
+    <div class="fbox"><div class="fb-label">${f.label}</div><div class="fb-val ${f.dir}">${f.val}</div><div class="fb-trend">${f.trend}</div></div>`).join('');
+  const doneCnt=p.todos.filter(t=>t.done).length;
+  const todos=p.todos.map((t,i)=>`
+    <div class="todo-item ${t.done?'done':''}" onclick="toggleTodo(${id},${i})">
+      <div class="todo-chk">${t.done?'✓':''}</div>
+      <div style="flex:1"><div class="todo-txt">${t.txt}</div><div class="todo-meta">${t.zone}</div></div>
+      <div class="todo-pri ${t.pri==='h'?'pri-h':t.pri==='m'?'pri-m':'pri-l'}">${t.pri==='h'?'HIGH':t.pri==='m'?'MED':'LOW'}</div>
+    </div>`).join('');
+  document.getElementById('rp-body').innerHTML=`
+    <div class="apc-wrap">
+      <div class="apc-hdr"><div class="apc-name">${p.name}</div><div class="apc-status">${enacted?'ENACTED':'DRAFT'}</div></div>
+      <div class="factor-grid">${factorBoxes}</div>
+    </div>
+    <div class="todo-sec">
+      <div class="todo-hdr"><div class="todo-title">Implementation Tasks</div><div class="todo-ct">${doneCnt}/${p.todos.length} DONE</div></div>
+      ${todos}
+    </div>
+    <div class="llm-sec">
+      <div class="llm-hdr"><div class="llm-ico">◈</div><div class="llm-label">UrbanPolicy AI Analysis</div></div>
+      <div class="llm-out" id="llm-out">Click below to run simulation analysis via connected AI engine...</div>
+      <button class="run-ai-btn" onclick="runPolicyAI(${id})">◈ RUN AI SIMULATION</button>
+    </div>`;
+}
+
+function toggleTodo(pid,idx){
+  policyData[pid].todos[idx].done=!policyData[pid].todos[idx].done;
+  renderPolicyDetail(pid);
+}
+
+function updateStats(id) {
+  if(id===1){animStat('s-walk',42,52);animStat('kpi-walk',42,52);}
+  if(id===2){animStat('s-aqi',61,70);animStat('kpi-aqi',61,70);}
+  if(id===3){animStat('s-tc',38,46,'%');animStat('kpi-transit',38,46,'%');}
+  if(id===5){animStat('s-haf',29,36,'%');animStat('kpi-afford',29,36,'%');}
+  if(id===6){animStat('s-co',4,14,'%',true);}
+}
+
+function animStat(id,from,to,suffix='',neg=false){
+  const el=document.getElementById(id); if(!el)return;
+  const steps=30,inc=(to-from)/steps; let cur=from,step=0;
+  const iv=setInterval(()=>{
+    cur+=inc;step++;
+    if(step>=steps){cur=to;clearInterval(iv);}
+    el.textContent=(neg?'-':'')+Math.round(Math.abs(cur))+suffix;
+  },50);
+}
+
+/* ═════════════════════════════════════
+   AI ENGINE — OLLAMA + ANTHROPIC
+═════════════════════════════════════ */
+function setBackend(b){
+  aiBackend=b;
+  document.getElementById('btn-backend-ollama').className='ai-backend-btn'+(b==='ollama'?' active-ollama active':'');
+  document.getElementById('btn-backend-anthropic').className='ai-backend-btn'+(b==='anthropic'?' active':'');
+  const input=document.getElementById('ai-conn-input');
+  if(b==='ollama'){
+    input.placeholder='Ollama base URL (e.g. http://localhost:11434)';
+    input.value=ollamaBaseUrl!=='http://localhost:11434'?ollamaBaseUrl:'';
+  } else {
+    input.placeholder='Anthropic API key (sk-ant-...)';
+    input.value='';
+  }
+  engineOnline=false;
+  updateEngineUI('OFFLINE','badge-offline');
+}
+
+function connectEngine(){
+  const val=document.getElementById('ai-conn-input').value.trim();
+  if(!val){showToast('Enter URL or API key first');return;}
+  if(aiBackend==='ollama'){
+    ollamaBaseUrl=val.replace(/\/$/,'');
+    testOllamaConnection(ollamaBaseUrl);
+  } else {
+    anthropicKey=val;
+    engineOnline=true;
+    updateEngineUI('CLAUDE ONLINE','badge-anthropic');
+    addChatMsg('ai','✓ Anthropic Claude connected. I am ready to assist with Karachi urban planning analysis.');
+    showToast('✓ Anthropic API connected');
+  }
+}
+
+async function testOllamaConnection(url){
+  updateEngineUI('CONNECTING...','badge-offline');
+  addChatMsg('thinking','Connecting to Ollama at '+url+' ...');
+  try {
+    const resp=await fetch(url+'/api/tags',{method:'GET',signal:AbortSignal.timeout(5000)});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    const models=(data.models||[]).map(m=>m.name).join(', ')||'(no models found)';
+    engineOnline=true;
+    // Try to pick user's first model or default to llama3
+    if(data.models&&data.models.length>0){
+      ollamaModel=data.models[0].name;
+    }
+    updateEngineUI('OLLAMA: '+ollamaModel.toUpperCase().slice(0,14),'badge-ollama');
+    addChatMsg('ai','✓ Ollama connected at '+url+'. Available models: '+models+'. Using: '+ollamaModel+'. You can ask me to analyse any Karachi policy.');
+    showToast('✓ Ollama connected — model: '+ollamaModel);
+  } catch(e){
+    updateEngineUI('OFFLINE','badge-offline');
+    addChatMsg('ai','⚠ Could not connect to Ollama at '+url+'. Make sure:\n1. Ollama is running (ollama serve)\n2. CORS is enabled: set env OLLAMA_ORIGINS=* before starting\n3. Your finetuned model is pulled/loaded\nError: '+e.message);
+  }
+}
+
+function updateEngineUI(label, badgeCls){
+  const b=document.getElementById('model-badge');
+  b.textContent=label; b.className='chat-model-badge '+badgeCls;
+  document.getElementById('s-engine').textContent=label.split(':')[0];
+  document.getElementById('engine-sub-label').textContent='URBANPOLICY AI · '+label;
+  document.getElementById('engine-status-txt').textContent=label==='OFFLINE'?'OSM · ENGINE OFFLINE':'OSM · '+label;
+}
+
+async function callAI(messages){
+  if(!engineOnline) throw new Error('No AI engine connected. Click CONNECT first.');
+  if(aiBackend==='ollama') return callOllama(messages);
+  return callAnthropic(messages);
+}
+
+async function callOllama(messages){
+  // Format messages for Ollama /api/chat
+  const payload={
+    model: ollamaModel,
+    messages: [
+      {role:'system', content: SYSTEM_PROMPT},
+      ...messages
+    ],
+    stream: false,
+    options:{ temperature: 0.7, num_predict: 800 }
+  };
+  const resp=await fetch(ollamaBaseUrl+'/api/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload),
+    signal:AbortSignal.timeout(60000)
+  });
+  if(!resp.ok){const e=await resp.text();throw new Error('Ollama error '+resp.status+': '+e.slice(0,200));}
+  const data=await resp.json();
+  return data.message?.content || data.response || '';
+}
+
+async function callAnthropic(messages){
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':anthropicKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1024,
+      system:SYSTEM_PROMPT,
+      messages
+    })
+  });
+  if(!resp.ok){const e=await resp.json();throw new Error(e.error?.message||'API error '+resp.status);}
+  const data=await resp.json();
+  return data.content[0]?.text||'';
+}
+
+/* ─── Chat ─── */
+function addChatMsg(role,text){
+  const div=document.getElementById('chat-msgs');
+  const el=document.createElement('div');
+  el.className='chat-msg '+role;
+  el.textContent=text;
+  div.appendChild(el);
+  div.scrollTop=div.scrollHeight;
+  return el;
+}
+
+async function sendChat(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim(); if(!text)return;
+  input.value='';
+  addChatMsg('user',text);
+  chatHistory.push({role:'user',content:text});
+  const thinking=addChatMsg('thinking','◈ thinking...');
+  document.getElementById('chat-send-btn').disabled=true;
+
+  try {
+    const ctxNote = enactedCount>0
+      ? ' [Enacted policies: '+Array.from(enactedPolicies).map(id=>policyData[id].name).join(', ')+']'
+      : '';
+    const msgs=[...chatHistory.slice(-8)];
+    if(ctxNote&&msgs.length>0) msgs[msgs.length-1]={...msgs[msgs.length-1],content:msgs[msgs.length-1].content+ctxNote};
+    const reply=await callAI(msgs);
+    thinking.remove();
+    addChatMsg('ai',reply);
+    chatHistory.push({role:'assistant',content:reply});
+  } catch(e){
+    thinking.remove();
+    addChatMsg('ai','Error: '+e.message);
+  }
+  document.getElementById('chat-send-btn').disabled=false;
+}
+
+/* ─── Run AI for policy simulation panel ─── */
+async function runPolicyAI(id){
+  const p=policyData[id];
+  const el=document.getElementById('llm-out'); if(!el)return;
+  el.innerHTML='<span class="llm-cursor"></span>';
+  try {
+    const txt=await callAI([{role:'user',content:`Simulate this Karachi urban policy for the UrbanPolicy platform: ${p.llmCtx}. Provide a 3-4 sentence simulation analysis with specific projected impacts, district-level effects, key risks, and a recommendation. Reference Karachi context.`}]);
+    typeText(el,txt);
+  } catch(e){
+    // Fallback
+    typeText(el,'Simulation: '+p.name+' is projected to deliver measurable impact across targeted Karachi districts. Connect the UrbanPolicy AI engine (Ollama or Anthropic) using the chat panel below for a live analysis powered by your finetuned model. Error: '+e.message);
+  }
+}
+
+/* ─── Run AI for scenario cards ─── */
+async function runScenarioAI(id,outEl){
+  const sc=scenarioCards.find(s=>s.id===id); if(!sc)return;
+  try {
+    const txt=await callAI([{role:'user',content:`Simulate this Karachi urban scenario: ${sc.llmCtx}. Provide a 2-sentence result with key projected metric outcomes and Karachi-specific impacts.`}]);
+    outEl.style.display='block';
+    typeText(outEl,txt);
+  } catch(e){
+    outEl.style.display='block';
+    outEl.textContent='Connect AI engine to see live simulation results. Projected: '+sc.metrics.map(m=>m.l+' '+m.v).join(' · ');
+  }
+}
+
+/* ─── Reports AI ─── */
+async function generateReport(){
+  const title=document.getElementById('report-title-input').value||'Karachi Policy Impact Assessment';
+  const type=document.getElementById('report-type-sel').value;
+  const period=document.getElementById('report-period').value;
+  const out=document.getElementById('report-gen-out');
+  out.style.display='block';
+  out.textContent='◈ Generating report with AI...';
+  try {
+    const enacted=enactedCount>0?Array.from(enactedPolicies).map(id=>policyData[id].name).join(', '):'No policies enacted yet';
+    const txt=await callAI([{role:'user',content:`Generate a concise executive summary for a Karachi urban planning ${type} report titled "${title}" for period ${period}. Active policies: ${enacted}. Include 3-4 key findings with Karachi-specific metrics and a priority recommendation.`}]);
+    typeText(out,txt);
+    // Add to report list
+    const newRep={
+      id:'r-gen-'+Date.now(), name:title, type, date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+      pages:Math.floor(Math.random()*20+16), author:'Auto-Generated', status:'ready',
+      exec:txt.slice(0,280)+'...', findings:'Generated via UrbanPolicy AI engine.',
+      metrics:[{k:'Walkability',v:document.getElementById('s-walk').textContent,c:'#10B981'},{k:'AQI',v:document.getElementById('s-aqi').textContent,c:'#EF4444'},{k:'Transit',v:document.getElementById('s-tc').textContent,c:'#60A5FA'}]
+    };
+    reportStore.unshift(newRep);
+    buildReportList();
+    showToast('✓ Report generated: '+title);
+  } catch(e){
+    out.textContent='Error: '+e.message+'. Connect AI engine first.';
+  }
+}
+
+async function generateLLMSection(){
+  const out=document.getElementById('llm-report-out');
+  out.style.display='block';
+  const title=document.getElementById('rp-title-display').textContent;
+  const exec=document.getElementById('rp-exec-text').textContent;
+  out.textContent='◈ Generating AI analysis...';
+  try {
+    const txt=await callAI([{role:'user',content:`Write a 3-sentence AI policy analysis for this Karachi urban planning report: "${title}". Summary: ${exec.slice(0,300)}. Provide insights on policy effectiveness, Karachi-specific risks, and strategic recommendations.`}]);
+    typeText(out,txt);
+  } catch(e){
+    out.textContent='Error: '+e.message+'. Connect AI engine to generate live analysis.';
+  }
+}
+
+async function submitScenario(){
+  const name=document.getElementById('sc-name-input').value||'Custom Scenario';
+  const horizon=document.getElementById('sc-horizon').value;
+  const objective=document.getElementById('sc-objective').value;
+  const budget=document.getElementById('sc-budget').value;
+  const desc=document.getElementById('sc-desc-input').value;
+  const popW=document.getElementById('sl-pop').value;
+  const envW=document.getElementById('sl-env').value;
+  const eqW=document.getElementById('sl-eq').value;
+  const out=document.getElementById('sc-submit-out');
+  out.style.display='block';
+  out.textContent='◈ Running scenario simulation...';
+  try {
+    const txt=await callAI([{role:'user',content:`Simulate this Karachi urban planning scenario: "${name}". Horizon: ${horizon}. Primary objective: ${objective}. Budget cap: ${budget?'PKR '+budget+'B':'unlimited'}. Priorities: Population Growth ${popW}%, Environmental ${envW}%, Equity ${eqW}%. Description: ${desc||'No additional details.'}. Provide projected outcomes across walkability, housing, AQI, transit and equity metrics with specific numbers and implementation recommendations for Karachi.`}]);
+    typeText(out,txt);
+    showToast('✓ Scenario simulation complete');
+  } catch(e){
+    out.textContent='Error: '+e.message+'. Connect AI engine for live simulation.';
+  }
+}
+
+/* ═════════════════════════════════════
+   UI BUILDERS
+═════════════════════════════════════ */
+function buildRegistryTable(){
+  const tbody=document.getElementById('registry-tbody'); if(!tbody)return;
+  tbody.innerHTML=registryData.map(r=>{
+    const enacted=[...enactedPolicies].some(id=>policyData[id].name===r.name);
+    const statCls=enacted?'tag-g':'tag-b';
+    const statTxt=enacted?'ENACTED':'DRAFT';
+    return `<tr>
+      <td>${r.name}</td>
+      <td><span class="tag ${r.catCls}">${r.cat}</span></td>
+      <td><span class="tag ${statCls}">${statTxt}</span></td>
+      <td style="color:#10B981">${r.walkDelta}</td>
+      <td style="color:#60A5FA">${r.aqiDelta}</td>
+      <td style="color:#10B981">${r.housingDelta}</td>
+      <td style="color:#10B981">${r.carbonDelta}</td>
+      <td><div class="impact-bar-wrap"><div class="impact-bar" style="width:${r.impact}%;background:${r.impact>80?'#10B981':r.impact>60?'#F59E0B':'#EF4444'}"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function buildScenarioCards(){
+  document.getElementById('sc-grid').innerHTML=scenarioCards.map(sc=>`
+    <div class="sc-card ${sc.cls}" id="sc-${sc.id}">
+      <div class="sc-name">${sc.name}</div>
+      <div class="sc-desc">${sc.desc}</div>
+      <div class="sc-meta-row">${sc.tags.map(t=>`<span class="sc-tag">${t}</span>`).join('')}</div>
+      <div class="sc-metrics">${sc.metrics.map(m=>`<div class="sc-metric"><div class="sc-metric-label">${m.l}</div><div class="sc-metric-val" style="color:${m.c}">${m.v}</div></div>`).join('')}</div>
+      <button class="sc-run-btn" id="sc-btn-${sc.id}" onclick="runScenario(${sc.id},this)">▶ RUN SIMULATION</button>
+      <div class="progress-bar"><div class="progress-fill" id="sc-prog-${sc.id}"></div></div>
+      <div class="sc-llm-out" id="sc-llm-${sc.id}"></div>
+    </div>`).join('');
+}
+
+function runScenario(id,btn){
+  const card=document.getElementById('sc-'+id);
+  if(btn.classList.contains('running'))return;
+  btn.textContent='◈ SIMULATING...'; btn.classList.add('running'); card.classList.add('running');
+  let pct=0;
+  const iv=setInterval(()=>{
+    pct+=Math.random()*7+2;
+    if(pct>=100){
+      pct=100; clearInterval(iv);
+      btn.textContent='✓ SIMULATION COMPLETE'; btn.classList.remove('running'); card.classList.remove('running');
+      showToast('✓ Scenario simulation complete');
+      const outEl=document.getElementById('sc-llm-'+id);
+      runScenarioAI(id,outEl);
+    }
+    document.getElementById('sc-prog-'+id).style.width=Math.min(pct,100)+'%';
+  },180);
+}
+
+function buildReportList(){
+  document.getElementById('report-list').innerHTML=reportStore.map(r=>`
+    <div class="report-item" onclick="previewReport('${r.id}')">
+      <div class="report-ico ${r.type.includes('Environ')?'ri-green':r.type.includes('Cost')?'ri-amber':r.type.includes('Equity')?'ri-purple':'ri-blue'}">${r.type.includes('Environ')?'🌿':r.type.includes('Cost')?'📊':r.type.includes('Equity')?'⚖️':'📋'}</div>
+      <div class="report-content">
+        <div class="report-name">${r.name}</div>
+        <div class="report-meta"><span>${r.date}</span><span>·</span><span>${r.pages} PAGES</span><span>·</span><span>${r.author}</span><span>·</span><span>${r.type}</span></div>
+      </div>
+      <div class="report-status ${r.status==='ready'?'rs-ready':r.status==='generating'?'rs-gen':'rs-draft'}">${r.status.toUpperCase()}</div>
+      <div class="report-actions">
+        <button class="r-btn" onclick="event.stopPropagation();previewReport('${r.id}')">PREVIEW</button>
+        <button class="r-btn primary" onclick="event.stopPropagation();exportReport('${r.name}')">EXPORT</button>
+      </div>
+    </div>`).join('');
+}
+
+function openReportModal(){ openModal('report-modal'); }
+
+function createReport(){
+  const title=document.getElementById('modal-report-title').value||'Karachi Policy Report';
+  const type=document.getElementById('modal-report-type').value;
+  const author=document.getElementById('modal-author').value||'Planning Department';
+  closeModal('report-modal');
+  const newRep={
+    id:'r-m-'+Date.now(), name:title, type, date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+    pages:24, author, status:'draft',
+    exec:'This '+type+' for "'+title+'" is currently in draft. Use the AI ANALYSIS button to generate a full executive summary.',
+    findings:'Findings will be populated upon AI analysis completion.',
+    metrics:[{k:'Walkability',v:document.getElementById('s-walk').textContent,c:'#10B981'},{k:'AQI',v:document.getElementById('s-aqi').textContent,c:'#EF4444'},{k:'Transit',v:document.getElementById('s-tc').textContent,c:'#60A5FA'}]
+  };
+  reportStore.unshift(newRep);
+  buildReportList();
+  showToast('✓ Report created: '+title);
+  previewReport(newRep.id);
+}
+
+function previewReport(id){
+  const r=reportStore.find(rep=>rep.id===id); if(!r)return;
+  document.getElementById('rp-title-display').textContent=r.name;
+  document.getElementById('rp-meta-display').textContent='KARACHI METRO · '+r.date.toUpperCase()+' · '+r.pages+' PAGES · '+r.author.toUpperCase();
+  document.getElementById('rp-exec-text').textContent=r.exec;
+  document.getElementById('rp-findings-text').textContent=r.findings;
+  const llmOut=document.getElementById('llm-report-out');
+  llmOut.style.display='none'; llmOut.textContent='Click "◈ AI ANALYSIS" to generate.';
+  document.getElementById('rp-metrics-list').innerHTML=r.metrics.map(m=>`
+    <div class="rcp-metric"><div class="rcp-metric-name">${m.k}</div><div class="rcp-metric-val" style="color:${m.c}">${m.v}</div></div>`).join('');
+  const prev=document.getElementById('report-preview');
+  prev.style.display='block';
+  prev.scrollIntoView({behavior:'smooth'});
+}
+
+function exportReport(name){
+  showToast('Exporting "'+( name||'Report')+'" as PDF... (integrate with server-side PDF export)');
+}
+
+/* ═════════════════════════════════════
+   SCENARIOS FORM
+═════════════════════════════════════ */
+function showScForm(){ document.getElementById('sc-form').style.display='block'; document.getElementById('sc-form').scrollIntoView({behavior:'smooth'}); }
+function hideScForm(){ document.getElementById('sc-form').style.display='none'; }
+function saveDraftScenario(){ showToast('Draft scenario saved locally'); hideScForm(); }
+
+/* ═════════════════════════════════════
+   ANALYTICS — Period switch
+═════════════════════════════════════ */
+const periodData = {
+  '6M':{ trend:{ walk:[39,40,40,41,41,42,42,42,42,42,42,42], aqi:[58,58,59,59,60,60,61,61,61,61,61,61], transit:[36,36,37,37,37,38,38,38,38,38,38,38], afford:[30,30,30,29,29,29,29,29,29,29,29,29] } },
+  '1Y':{ trend:{ walk:[35,36,37,38,38,39,39,40,40,41,41,42], aqi:[54,55,55,56,57,57,58,59,59,60,60,61], transit:[33,33,34,34,35,35,36,36,37,37,38,38], afford:[32,31,31,31,30,30,30,30,29,29,29,29] } },
+  '5Y':{ trend:{ walk:[28,29,31,33,34,36,37,38,39,40,41,42], aqi:[48,49,51,52,54,55,56,57,58,59,60,61], transit:[27,28,29,30,31,32,33,34,35,36,37,38], afford:[36,35,34,33,32,32,31,30,30,29,29,29] } },
+  'BASELINE':{ trend:{ walk:[42,42,42,42,42,42,42,42,42,42,42,42], aqi:[61,61,61,61,61,61,61,61,61,61,61,61], transit:[38,38,38,38,38,38,38,38,38,38,38,38], afford:[29,29,29,29,29,29,29,29,29,29,29,29] } },
+};
+
+function setAnalyticsPeriod(p,btn){
+  document.querySelectorAll('#analytics-period-ctrl .ctrl-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('analytics-updated').textContent='LAST UPDATED: '+new Date().toLocaleTimeString();
+  if(chartTrend&&periodData[p]){
+    const d=periodData[p].trend;
+    chartTrend.data.datasets[0].data=d.walk;
+    chartTrend.data.datasets[1].data=d.aqi;
+    chartTrend.data.datasets[2].data=d.transit;
+    chartTrend.data.datasets[3].data=d.afford;
+    chartTrend.update();
+  }
+}
+
+/* ═════════════════════════════════════
+   CHARTS
+═════════════════════════════════════ */
+function initCharts(){
+  if(chartsInit)return; chartsInit=true;
+  Chart.defaults.color='rgba(255,255,255,0.42)';
+  Chart.defaults.borderColor='rgba(255,255,255,0.05)';
+  const months=['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  chartTrend=new Chart(document.getElementById('chart-trend'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {label:'Walkability',data:[39,40,40,41,41,42,42,42,42,42,42,42],borderColor:'#10B981',backgroundColor:'rgba(16,185,129,0.07)',tension:0.4,borderWidth:2,pointRadius:2.5,fill:true},
+      {label:'AQI',data:[58,58,59,59,60,60,61,61,61,61,61,61],borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.05)',tension:0.4,borderWidth:2,pointRadius:2.5,fill:true},
+      {label:'Transit %',data:[36,36,37,37,37,38,38,38,38,38,38,38],borderColor:'#8B5CF6',backgroundColor:'rgba(139,92,246,0.05)',tension:0.4,borderWidth:2,pointRadius:2.5,fill:true},
+      {label:'Affordability %',data:[30,30,30,29,29,29,29,29,29,29,29,29],borderColor:'#F59E0B',backgroundColor:'rgba(245,158,11,0.05)',tension:0.4,borderWidth:2,pointRadius:2.5,fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:9,font:{family:'DM Mono',size:8}}}},scales:{y:{grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:8}}},x:{grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:8}}}}}
+  });
+  chartDonut=new Chart(document.getElementById('chart-donut'),{
+    type:'doughnut',
+    data:{labels:['Land Use','Transport','Housing','Environment'],datasets:[{data:[30,32,20,18],backgroundColor:['rgba(16,185,129,0.7)','rgba(37,99,235,0.7)','rgba(239,68,68,0.7)','rgba(6,182,212,0.7)'],borderColor:'rgba(6,9,18,0.8)',borderWidth:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:7,font:{family:'DM Mono',size:8},padding:10}}},cutout:'68%'}
+  });
+  chartCarbon=new Chart(document.getElementById('chart-carbon'),{
+    type:'bar',
+    data:{labels:['Saddar','Clifton','Korangi','Malir','Lyari','Orangi'],datasets:[{label:'AQI Level',data:[72,55,88,64,82,76],backgroundColor:d=>d.raw>80?'rgba(239,68,68,0.6)':'rgba(245,158,11,0.5)',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:7}}},x:{grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:7}}}}}
+  });
+  chartHousing=new Chart(document.getElementById('chart-housing'),{
+    type:'bar',
+    data:{labels:['Q1','Q2','Q3','Q4','Q1\'25'],datasets:[
+      {label:'Formal',data:[1200,1400,1600,1900,2200],backgroundColor:'rgba(37,99,235,0.55)',borderRadius:3},
+      {label:'Regularised',data:[8400,9200,10100,11800,13200],backgroundColor:'rgba(16,185,129,0.45)',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:7,font:{family:'DM Mono',size:7},padding:7}}},scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:7}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.035)'},ticks:{font:{family:'DM Mono',size:7}}}}}
+  });
+  chartModal=new Chart(document.getElementById('chart-modal'),{
+    type:'doughnut',
+    data:{labels:['Bus/BRT','Rickshaw','Private Car','Walking'],datasets:[{data:[28,34,22,16],backgroundColor:['rgba(37,99,235,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)','rgba(16,185,129,0.7)'],borderColor:'rgba(6,9,18,0.8)',borderWidth:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:7,font:{family:'DM Mono',size:7},padding:7}}},cutout:'60%'}
+  });
+}
+
+/* ═════════════════════════════════════
+   TYPEWRITER
+═════════════════════════════════════ */
+function typeText(el,text,speed=13){
+  el.innerHTML='<span class="llm-cursor"></span>';
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i>=text.length){clearInterval(iv);el.innerHTML=text;return;}
+    el.innerHTML=text.slice(0,++i)+'<span class="llm-cursor"></span>';
+  },speed);
+}
+
+/* ─── BOOT ─── */
+init();
+</script>
+</body>
+</html>
