@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanPolicy—Metropolitan Governance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">⬡</div>
+    <div>
+      <div class="logo-name"><em>Urban</em>Policy</div>
+      <div class="logo-sub">Metroplitan Planning Authority</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="ntab active" onclick="showPage('simulation',this)">Simulation</div>
+    <div class="ntab" onclick="showPage('analytics',this)">Analytics</div>
+    <div class="ntab" onclick="showPage('scenarios',this)">Scenarios</div>
+    <div class="ntab" onclick="showPage('reports',this)">Reports</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-pill"><div class="live-dot"></div><div class="live-txt" id="engine-status-txt">OSM · LIVE</div></div>
+    <div class="readonly-pill" id="readonly-pill" onclick="toggleReadOnly()" title="Toggle read-only mode">👁 VIEW ONLY</div>
+    <div class="user-chip" onclick="openModal('role-modal')">
+      <div class="user-avatar" id="user-avatar-initials">A</div>
+      <div><div class="user-name" id="user-name-badge">Ahmed Hassan</div><div class="user-role-lbl" id="user-role-lbl">Commissioner</div></div>
+    </div>
+    <div class="clock-box" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+<!-- PAGE 1: SIMULATION -->
+<div class="page active" id="page-simulation">
+<div class="sim-layout">
+
+  <!-- LEFT PANEL: Policy Library -->
+  <div class="left-panel">
+    <div class="lp-section">
+      <div class="lp-head">
+        <span class="lp-head-txt">Policy Library</span>
+        <span id="enacted-ct" style="font-family:var(--font-mono);font-size:8px;color:var(--green);font-weight:600">0 ENACTED</span>
+      </div>
+    </div>
+
+    <!-- Budget tracker -->
+    <div class="budget-bar-wrap">
+      <div class="budget-hdr">
+        <span class="budget-label">BUDGET UTILISATION</span>
+        <span class="budget-pct" id="budget-pct-lbl" style="color:var(--green)">0%</span>
+      </div>
+      <div class="budget-track"><div class="budget-fill" id="budget-fill" style="width:0%"></div></div>
+      <div class="budget-sub" id="budget-sub">PKR 0B of 150B cap used</div>
+    </div>
+
+    <div class="lp-scroll">
+      <div class="lp-body">
+        <div id="policy-cards-container"></div>
+        <div style="padding:4px 0 6px">
+          <button class="add-policy-btn" onclick="checkPermission('add','canEdit')&&openModal('add-policy-modal')">＋ Add Policy</button>
+          <label class="import-label" title="Import policies from CSV">
+            ⬆ Import CSV
+            <input type="file" accept=".csv" style="display:none" onchange="importCSV(event)">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map Layers -->
+    <div class="lp-section" style="flex-shrink:0">
+      <div class="lp-head"><span class="lp-head-txt">Map Layers</span></div>
+      <div class="lp-body">
+        <div class="layer-row" onclick="toggleLayer('greenSpaces')"><div class="layer-left"><div class="ldot" style="background:#059669"></div><div class="lname">Green Spaces</div></div><div class="toggle on" id="toggle-greenSpaces"></div></div>
+        <div class="layer-row" onclick="toggleLayer('congestion')"><div class="layer-left"><div class="ldot" style="background:#D97706"></div><div class="lname">Congestion Heat</div></div><div class="toggle on" id="toggle-congestion"></div></div>
+        <div class="layer-row" onclick="toggleLayer('zoning')"><div class="layer-left"><div class="ldot" style="background:#1E40AF"></div><div class="lname">Zoning Districts</div></div><div class="toggle on" id="toggle-zoning"></div></div>
+        <div class="layer-row" onclick="toggleLayer('density')"><div class="layer-left"><div class="ldot" style="background:#DC2626"></div><div class="lname">Density Overlay</div></div><div class="toggle" id="toggle-density"></div></div>
+        <div class="layer-row" onclick="toggleLayer('transit')"><div class="layer-left"><div class="ldot" style="background:#7C3AED"></div><div class="lname">Transport Nodes</div></div><div class="toggle on" id="toggle-transit"></div></div>
+        <div class="layer-row" onclick="toggleLayer('flood')"><div class="layer-left"><div class="ldot" style="background:#0891B2"></div><div class="lname">Flood Risk Zones</div></div><div class="toggle" id="toggle-flood"></div></div>
+        <div class="layer-row eonet-layer" onclick="toggleLayer('eonetEvents')"><div class="layer-left"><div class="ldot" style="background:#DC2626"></div><div class="lname">EONET Disasters</div></div><div class="toggle" id="toggle-eonetEvents"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Map -->
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="draw-tooltip" id="draw-tooltip">Click to place points · Double-click to finish</div>
+
+    <!-- EONET Panel -->
+    <div class="disaster-panel" id="disaster-panel">
+      <div class="dp-head">
+        <div class="dp-head-row">
+          <div class="dp-title"><div class="dp-title-icon">🛰</div>NASA EONET Live Events</div>
+          <button class="dp-close" onclick="closeDisasterPanel()">✕</button>
+        </div>
+        <div class="dp-status-row">
+          <div class="dp-live-dot"></div>
+          <div class="dp-status-txt" id="eonet-status-txt">NOT FETCHED · CLICK REFRESH</div>
+          <button class="dp-fetch-btn" id="eonet-fetch-btn" onclick="fetchEONET()">↻ REFRESH</button>
+        </div>
+      </div>
+      <div class="dp-filters">
+        <button class="dp-filter-btn f-all active-f" onclick="setEONETFilter('all',this)">ALL</button>
+        <button class="dp-filter-btn f-wildfires"    onclick="setEONETFilter('wildfires',this)">🔥 Fire</button>
+        <button class="dp-filter-btn f-severeStorms" onclick="setEONETFilter('severeStorms',this)">🌀 Storm</button>
+        <button class="dp-filter-btn f-floods"       onclick="setEONETFilter('floods',this)">🌊 Flood</button>
+        <button class="dp-filter-btn f-volcanoes"    onclick="setEONETFilter('volcanoes',this)">🌋 Volcano</button>
+        <button class="dp-filter-btn f-earthquakes"  onclick="setEONETFilter('earthquakes',this)">⚡ Quake</button>
+        <button class="dp-filter-btn f-drought"      onclick="setEONETFilter('drought',this)">🏜 Drought</button>
+        <button class="dp-filter-btn f-dustHaze"     onclick="setEONETFilter('dustHaze',this)">💨 Dust</button>
+        <button class="dp-filter-btn f-landslides"   onclick="setEONETFilter('landslides',this)">⛰ Slide</button>
+        <button class="dp-filter-btn f-seaLakeIce"   onclick="setEONETFilter('seaLakeIce',this)">🧊 Ice</button>
+        <button class="dp-filter-btn f-tempExtremes" onclick="setEONETFilter('tempExtremes',this)">🌡 Heat</button>
+      </div>
+      <div class="dp-stats-strip">
+        <div class="dp-stat"><div class="dp-stat-val" id="eonet-total">—</div><div class="dp-stat-label">TOTAL</div></div>
+        <div class="dp-stat"><div class="dp-stat-val" id="eonet-open" style="color:var(--red)">—</div><div class="dp-stat-label">OPEN</div></div>
+        <div class="dp-stat"><div class="dp-stat-val" id="eonet-closed" style="color:var(--muted)">—</div><div class="dp-stat-label">CLOSED</div></div>
+        <div class="dp-stat"><div class="dp-stat-val" id="eonet-enacted-ct" style="color:var(--amber)">0</div><div class="dp-stat-label">POLICIES</div></div>
+      </div>
+      <div class="dp-list" id="eonet-event-list">
+        <div class="dp-loading"><div class="dp-spinner"></div>AWAITING EONET FETCH</div>
+      </div>
+      <div class="dp-footer">
+        <div class="dp-selected-label" id="dp-selected-label">Select an event above, then enact a policy response</div>
+        <div class="dp-enact-row">
+          <button class="dp-enact-btn" onclick="enactDisasterPolicy()">▶ ENACT DISASTER POLICY</button>
+          <button class="dp-ai-btn"    onclick="analyseDisasterAI()">◈ AI RISK BRIEF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD top-left -->
+    <div class="map-hud-tl">
+      <div class="hud-box">
+        <div class="hud-title">Karachi Metro</div>
+        <div class="hud-row">
+          <div><div class="hud-val">16.1M</div><div class="hud-sub">population</div></div>
+          <div class="hud-divider"></div>
+          <div><div class="hud-val" style="color:var(--green)" id="hud-pol">0</div><div class="hud-sub">policies active</div></div>
+        </div>
+      </div>
+      <div class="hud-box" id="quorum-hud" style="display:none">
+        <div class="hud-title" style="color:var(--amber)">⚠ PENDING APPROVAL</div>
+        <div style="font-family:var(--font-mono);font-size:8px;color:var(--ink2)" id="quorum-txt">0/2 approvers</div>
+      </div>
+    </div>
+
+    <!-- HUD top-right -->
+    <div class="map-hud-tr">
+      <div class="mode-sel">
+        <button class="mode-btn active" id="mode-select"  onclick="setMapMode('select',this)">SELECT</button>
+        <button class="mode-btn"        id="mode-draw"    onclick="setMapMode('draw',this)">DRAW</button>
+        <button class="mode-btn"        id="mode-measure" onclick="setMapMode('measure',this)">MEASURE</button>
+      </div>
+      <div class="sim-pill">
+        <div class="sim-dot"></div>
+        <div class="sim-txt">SIM T+<span id="simtime">00:00:00</span></div>
+      </div>
+      <div class="eonet-hud-btn" id="eonet-hud-btn" onclick="toggleDisasterPanel()">
+        <span style="font-size:13px">🛰</span>
+        <span class="eonet-hud-txt">EONET LIVE</span>
+        <span class="eonet-count-badge" id="eonet-hud-count">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Simulation Engine -->
+  <div class="right-panel">
+    <div class="rp-head">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="rp-title">Simulation Engine</div>
+        <div class="version-badge" onclick="openModal('version-modal')" id="policy-version-badge" style="display:none">v<span id="policy-version-num">1</span> · History</div>
+      </div>
+      <div class="rp-sub" id="engine-sub-label">URBANPOLICY AI · CONNECT ENGINE BELOW</div>
+    </div>
+    <div class="rp-body" id="rp-body">
+      <div class="empty-state"><div class="empty-ico">◈</div><div class="empty-txt">SELECT A POLICY TO<br>BEGIN SIMULATION</div></div>
+    </div>
+    <!-- AI Chat -->
+    <div class="chat-section">
+      <div class="ai-config-bar">
+        <button class="ai-backend-btn active" id="btn-backend-ollama"    onclick="setBackend('ollama')">OLLAMA</button>
+        <button class="ai-backend-btn"        id="btn-backend-anthropic" onclick="setBackend('anthropic')">ANTHROPIC</button>
+        <input class="ai-conn-input" id="ai-conn-input" placeholder="http://localhost:11434"/>
+        <button class="ai-conn-btn" onclick="connectEngine()">CONNECT</button>
+      </div>
+      <div class="chat-head">
+        <div class="chat-ico">◈</div>
+        <div class="chat-label">UrbanPolicy AI</div>
+        <div class="chat-model-badge badge-offline" id="model-badge">OFFLINE</div>
+      </div>
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-msg ai">Connect Ollama or Anthropic to enable AI simulation analysis. Use Ctrl+Enter to send.</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Ask about Karachi urban policy…" onkeydown="handleChatKey(event)">
+        <button class="chat-send" id="chat-send-btn" onclick="sendChat()">SEND</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- PAGE 2: ANALYTICS -->
+<div class="page" id="page-analytics">
+<div class="analytics-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Analytics Dashboard</div>
+      <div class="section-sub">METROPOLITAN · LIVE KPI TRACKING · <span id="analytics-updated">LAST UPDATED: NOW</span></div>
+    </div>
+    <div class="page-controls" id="analytics-period-ctrl">
+      <button class="ctrl-btn active" onclick="setAnalyticsPeriod('6M',this)">6M</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('1Y',this)">1Y</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('5Y',this)">5Y</button>
+      <button class="ctrl-btn" onclick="setAnalyticsPeriod('BASELINE',this)">BASELINE</button>
+      <button class="ctrl-btn" onclick="exportAnalytics()">↓ EXPORT</button>
+    </div>
+  </div>
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card kpi-g"><div class="kpi-label">Walkability Score</div><div class="kpi-val" id="kpi-walk">42</div><div class="kpi-change kpi-up" id="kpi-walk-ch">↑ Enact policies to improve</div></div>
+    <div class="kpi-card kpi-b"><div class="kpi-label">Transit Coverage</div><div class="kpi-val" id="kpi-transit">38%</div><div class="kpi-change kpi-up">↑ +2.4pp target period</div></div>
+    <div class="kpi-card kpi-a"><div class="kpi-label">Housing Affordability</div><div class="kpi-val" id="kpi-afford">29%</div><div class="kpi-change kpi-down">↓ Under pressure</div></div>
+    <div class="kpi-card kpi-r"><div class="kpi-label">AQI (PM2.5)</div><div class="kpi-val" id="kpi-aqi">61</div><div class="kpi-change kpi-down">↓ Needs intervention</div></div>
+    <div class="kpi-card kpi-p"><div class="kpi-label">Flood Exposure</div><div class="kpi-val">HIGH</div><div class="kpi-change kpi-flat">— 3.2M at risk</div></div>
+    <div class="kpi-card kpi-t"><div class="kpi-label">Enacted Policies</div><div class="kpi-val" id="a-ep">0</div><div class="kpi-change kpi-flat">— active simulations</div></div>
+    <div class="kpi-card" style="border-top-color:var(--red);border-top-width:3px"><div class="kpi-label">Live Disasters</div><div class="kpi-val" id="kpi-disasters" style="color:var(--red)">—</div><div class="kpi-change" id="kpi-disasters-ch" style="color:var(--muted)">— fetch EONET</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card"><div class="chart-title">Karachi Metrics — Trend</div><div class="chart-sub">WALKABILITY · AQI · TRANSIT · AFFORDABILITY</div><div class="chart-wrap"><canvas id="chart-trend"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Policy Impact by Sector</div><div class="chart-sub">ENACTED DISTRIBUTION</div><div class="chart-wrap"><canvas id="chart-donut"></canvas></div></div>
+  </div>
+  <div class="charts-grid2">
+    <div class="chart-card"><div class="chart-title">Air Quality by District</div><div class="chart-sub">PM2.5 AQI LEVELS</div><div class="mini-chart-wrap"><canvas id="chart-carbon"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Housing Pipeline</div><div class="chart-sub">FORMAL VS KATCHI ABADI</div><div class="mini-chart-wrap"><canvas id="chart-housing"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Modal Share</div><div class="chart-sub">BUS · RICKSHAW · PRIVATE · WALK</div><div class="mini-chart-wrap"><canvas id="chart-modal"></canvas></div></div>
+  </div>
+  <div class="chart-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+      <div class="chart-title">Policy Impact Registry</div>
+      <button class="ctrl-btn" onclick="exportRegistryCSV()" style="padding:4px 10px;font-size:7.5px">↓ CSV</button>
+    </div>
+    <div class="chart-sub">ALL POLICIES WITH PROJECTED KARACHI OUTCOMES · LIVE STATUS</div>
+    <table class="policy-table" style="margin-top:10px">
+      <thead><tr><th>Policy</th><th>Category</th><th>Status</th><th>Walkability</th><th>AQI</th><th>Housing</th><th>Carbon</th><th>Impact</th></tr></thead>
+      <tbody id="registry-tbody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- PAGE 3: SCENARIOS -->
+<div class="page" id="page-scenarios">
+<div class="scenarios-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Scenario Planning</div>
+      <div class="section-sub">COMPOUND POLICY SIMULATIONS · SELECT TWO TO COMPARE</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn" onclick="clearCompare()">Clear Compare</button>
+      <button class="ctrl-btn" onclick="showScForm()">+ New Scenario</button>
+    </div>
+  </div>
+  <div id="compare-panel" style="display:none"></div>
+  <div class="sc-grid" id="sc-grid"></div>
+  <div class="sc-form-card" id="sc-form" style="display:none">
+    <div class="sc-form-title">Build Custom Scenario</div>
+    <div class="sc-form-sub">DEFINE PARAMETERS · CONFIGURE POLICIES · SUBMIT FOR AI SIMULATION</div>
+    <div class="form-grid">
+      <div class="form-group"><div class="form-label">Scenario Name</div><input class="form-input" id="sc-name-input" placeholder="e.g. Karachi Green Growth 2035"></div>
+      <div class="form-group"><div class="form-label">Time Horizon</div><select class="form-select" id="sc-horizon"><option>2 Years</option><option>5 Years</option><option selected>10 Years</option><option>20 Years</option><option>30 Years</option></select></div>
+      <div class="form-group"><div class="form-label">Primary Objective</div><select class="form-select" id="sc-objective"><option>Walkability</option><option>Air Quality</option><option>Housing Affordability</option><option>Flood Resilience</option><option>Economic Growth</option><option>Equity &amp; Inclusion</option></select></div>
+      <div class="form-group"><div class="form-label">Budget Cap (PKR Bn)</div><input class="form-input" id="sc-budget" type="number" placeholder="50" min="0"></div>
+      <div class="form-group"><div class="form-label">Target Districts</div><select class="form-select" id="sc-districts" multiple style="height:65px"><option>Saddar</option><option>Clifton</option><option>Korangi</option><option>Malir</option><option>Gulshan</option><option>Surjani</option><option>Lyari</option><option>Orangi</option></select></div>
+      <div class="form-group"><div class="form-label">Policy Cluster</div><select class="form-select" id="sc-policies" multiple style="height:65px"><option>Mixed-Use Zoning</option><option>Coastal Green Corridor</option><option>BRT Orange Line</option><option>TOD Nodes</option><option>Katchi Abadi Reg.</option><option>Net-Zero Industry</option></select></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><div class="form-label">Scenario Description &amp; Goals</div><textarea class="form-textarea" id="sc-desc-input" placeholder="Describe goals, constraints, and expected outcomes for this Karachi scenario…"></textarea></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px">
+      <div class="slider-group"><div class="form-label">Population Growth Priority</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="65" id="sl-pop" oninput="document.getElementById('slv-pop').textContent=this.value+'%'"><span class="slider-val" id="slv-pop">65%</span></div></div>
+      <div class="slider-group"><div class="form-label">Environmental Weight</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="70" id="sl-env" oninput="document.getElementById('slv-env').textContent=this.value+'%'"><span class="slider-val" id="slv-env">70%</span></div></div>
+      <div class="slider-group"><div class="form-label">Equity &amp; Inclusion</div><div class="slider-row"><input class="form-slider" type="range" min="0" max="100" value="85" id="sl-eq" oninput="document.getElementById('slv-eq').textContent=this.value+'%'"><span class="slider-val" id="slv-eq">85%</span></div></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="hideScForm()">Cancel</button>
+      <button class="btn-secondary" onclick="saveDraftScenario()">Save Draft</button>
+      <button class="btn-primary" onclick="submitScenario()">▶ SUBMIT FOR SIMULATION</button>
+    </div>
+    <div class="sc-submit-out" id="sc-submit-out"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- PAGE 4: REPORTS -->
+<div class="page" id="page-reports">
+<div class="reports-page">
+<div class="page-inner">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Reports &amp; Documentation</div>
+      <div class="section-sub">GENERATE · REVIEW · EXPORT PDF — KARACHI PLANNING AUTHORITY</div>
+    </div>
+    <div class="page-controls">
+      <button class="ctrl-btn" onclick="openAuditLogModal()">📜 Audit Log</button>
+      <button class="ctrl-btn" onclick="openReportModal()">+ New Report</button>
+    </div>
+  </div>
+
+  <!-- Storage dashboard -->
+  <div class="storage-section" id="storage-widget">
+    <div style="text-align:center;padding:16px;font-family:var(--font-mono);font-size:8px;color:var(--muted)">Loading storage…</div>
+  </div>
+
+  <!-- Report generator -->
+  <div class="report-gen-card">
+    <div class="sc-form-title">AI Report Generator</div>
+    <div class="sc-form-sub">GENERATES TYPE-SPECIFIC FORMATTED REPORTS WITH LIVE KPI SNAPSHOT · PDF EXPORT VIA PRINT DIALOG</div>
+    <div class="report-form-grid">
+      <div class="form-group"><div class="form-label">Report Title</div><input class="form-input" id="report-title-input" placeholder="e.g. Q2 2025 Karachi Policy Impact Assessment"></div>
+      <div class="form-group"><div class="form-label">Report Type</div><select class="form-select" id="report-type-sel"><option>Impact Assessment</option><option>Cost-Benefit Analysis</option><option>Equity Audit</option><option>Environmental Report</option><option>Executive Summary</option></select></div>
+      <div class="form-group"><div class="form-label">Period</div><select class="form-select" id="report-period"><option>Q1 2025</option><option>Q2 2025</option><option>H1 2025</option><option>Full Year 2025</option></select></div>
+      <div class="form-group" style="align-self:end"><button class="btn-primary" style="width:100%;padding:9px" onclick="generateReport()">▶ GENERATE WITH AI</button></div>
+    </div>
+    <!-- Live KPI hint -->
+    <div style="background:var(--brand-light);border:1px solid var(--brand-mid);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-family:var(--font-mono);font-size:8px;color:var(--brand);display:flex;align-items:center;gap:8px">
+      <span>📊</span>
+      <span>Live KPIs: Walk <b id="rg-walk">42</b> · AQI <b id="rg-aqi">61</b> · Transit <b id="rg-tc">38%</b> · Affordability <b id="rg-af">29%</b> · Enacted <b id="rg-ep">0</b> — enact policies on Simulation page to update</span>
+    </div>
+    <div class="sc-submit-out" id="report-gen-out"></div>
+  </div>
+
+  <div class="report-list" id="report-list"></div>
+
+  <div class="report-preview" id="report-preview" style="display:none" data-report-id="">
+    <div class="report-preview-header">
+      <div><div class="rph-title" id="rp-title-display">Report Title</div><div class="rph-meta" id="rp-meta-display">META</div></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="r-btn" onclick="document.getElementById('report-preview').style.display='none'">CLOSE</button>
+        <button class="r-btn pdf-btn" onclick="exportCurrentReport()">⬇ EXPORT PDF</button>
+        <button class="r-btn primary" onclick="generateLLMSection()">◈ AI ANALYSIS</button>
+      </div>
+    </div>
+    <div class="report-content-preview">
+      <div>
+        <div class="rcp-section"><div class="rcp-sec-title">Executive Summary</div><div class="rcp-text" id="rp-exec-text"></div></div>
+        <div class="rcp-section"><div class="rcp-sec-title">Key Findings</div><div class="rcp-text" id="rp-findings-text"></div></div>
+        <div class="rcp-section"><div class="rcp-sec-title">AI Policy Narrative</div><div class="llm-report-out" id="llm-report-out">Click "◈ AI ANALYSIS" to generate live analysis.</div></div>
+      </div>
+      <div><div class="rcp-section"><div class="rcp-sec-title">Performance Metrics</div><div id="rp-metrics-list"></div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+</div><!-- /workspace -->
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-label">WALKABILITY</span><span class="stat-val sv-g" id="s-walk">42</span></div>
+  <div class="stat-item"><span class="stat-label">AQI</span><span class="stat-val sv-a" id="s-aqi">61</span></div>
+  <div class="stat-item"><span class="stat-label">AFFORDABILITY</span><span class="stat-val sv-a" id="s-haf">29%</span></div>
+  <div class="stat-item"><span class="stat-label">TRANSIT</span><span class="stat-val sv-b" id="s-tc">38%</span></div>
+  <div class="stat-item"><span class="stat-label">CARBON</span><span class="stat-val sv-g" id="s-co">-4%</span></div>
+  <div class="stat-item"><span class="stat-label">ENACTED</span><span class="stat-val sv-g" id="s-ep">0</span></div>
+  <div class="stat-item"><span class="stat-label">SIM T+</span><span class="stat-val" id="s-time" style="color:var(--muted)">00:00:00</span></div>
+  <div class="stat-item"><span class="stat-label">SAVED</span><span class="stat-last-saved" id="s-saved">never</span></div>
+  <div class="stat-item"><span class="stat-label">ENGINE</span><span class="stat-val" id="s-engine" style="color:var(--muted)">OFFLINE</span></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════
+     MODALS
+══════════════════════════════════ -->
+
+<!-- Add Policy -->
+<div class="modal-overlay" id="add-policy-modal">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <div><div class="modal-title">Add Policy to Library</div><div class="modal-sub">DEFINE A NEW POLICY FOR THE KARACHI SIMULATION LIBRARY</div></div>
+      <button class="modal-close" onclick="closeModal('add-policy-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1/-1"><div class="form-label">Policy Name *</div><input class="form-input" id="new-pol-name" placeholder="e.g. Solar Rooftop Mandate — Residential Zones"></div>
+        <div class="form-group"><div class="form-label">Category</div><select class="form-select" id="new-pol-cat"><option>Land Use</option><option>Transport</option><option>Housing</option><option>Environment</option><option>Other</option></select></div>
+        <div class="form-group"><div class="form-label">Time Horizon</div><select class="form-select" id="new-pol-horizon"><option>1 Year</option><option>2 Years</option><option selected>5 Years</option><option>10 Years</option><option>20 Years</option></select></div>
+        <div class="form-group" style="grid-column:1/-1"><div class="form-label">Coverage Area / Description</div><input class="form-input" id="new-pol-meta" placeholder="e.g. All residential plots > 200sqm in KDA-zoned areas"></div>
+        <div class="form-group"><div class="form-label">Primary Impact Label</div><input class="form-input" id="new-pol-i1-label" placeholder="e.g. Carbon Reduction"></div>
+        <div class="form-group"><div class="form-label">Primary Impact Value</div><input class="form-input" id="new-pol-i1-val" placeholder="e.g. -22%"></div>
+        <div class="form-group"><div class="form-label">Secondary Impact Label</div><input class="form-input" id="new-pol-i2-label" placeholder="e.g. Energy Savings"></div>
+        <div class="form-group"><div class="form-label">Secondary Impact Value</div><input class="form-input" id="new-pol-i2-val" placeholder="e.g. PKR 8B/yr"></div>
+        <div class="form-group"><div class="form-label">Capital Cost (PKR)</div><input class="form-input" id="new-pol-cost" placeholder="e.g. PKR 12B"></div>
+        <div class="form-group"><div class="form-label">Budget (PKR Bn)</div><input class="form-input" id="new-pol-budget" type="number" placeholder="12" min="0"></div>
+        <div class="form-group" style="grid-column:1/-1"><div class="form-label">First Implementation Step</div><textarea class="form-textarea" id="new-pol-notes" placeholder="Describe the first key implementation action…" style="min-height:55px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('add-policy-modal')">Cancel</button>
+      <button class="btn-primary" onclick="addNewPolicy()">＋ ADD TO LIBRARY</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><div class="modal-title">New Report</div><div class="modal-sub">KARACHI METROPOLITAN PLANNING AUTHORITY · CONFIDENTIAL</div></div>
+      <button class="modal-close" onclick="closeModal('report-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group"><div class="form-label">Report Title</div><input class="form-input" id="modal-report-title" placeholder="e.g. BRT Orange Line Impact Assessment"></div>
+        <div class="form-group"><div class="form-label">Type</div><select class="form-select" id="modal-report-type"><option>Impact Assessment</option><option>Cost-Benefit Analysis</option><option>Equity Audit</option><option>Environmental Report</option><option>Executive Summary</option></select></div>
+        <div class="form-group"><div class="form-label">Author / Department</div><input class="form-input" id="modal-author" placeholder="e.g. Infrastructure Planning Dept."></div>
+        <div class="form-group"><div class="form-label">Notes</div><textarea class="form-textarea" id="modal-notes" placeholder="Additional context or instructions…" style="min-height:55px"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('report-modal')">Cancel</button>
+      <button class="btn-primary" onclick="createReport()">CREATE REPORT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Audit Log -->
+<div class="modal-overlay" id="audit-modal">
+  <div class="modal-card wide xl" style="max-height:80vh">
+    <div class="modal-head">
+      <div><div class="modal-title">Audit Log</div><div class="modal-sub">IMMUTABLE RECORD — POLICY DECISIONS, APPROVALS, AI ANALYSES</div></div>
+      <button class="modal-close" onclick="closeModal('audit-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="audit-modal-body" style="max-height:54vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('audit-modal')">Close</button>
+      <button class="btn-secondary" onclick="exportAuditCSV()">↓ Export CSV</button>
+      <button class="btn-danger" onclick="confirmClearAudit()">Clear Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- Role Switcher -->
+<div class="modal-overlay" id="role-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><div class="modal-title">Switch User Role</div><div class="modal-sub">ROLES CONTROL POLICY WORKFLOW PERMISSIONS — DEMO MODE</div></div>
+      <button class="modal-close" onclick="closeModal('role-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="role-option" onclick="switchRole('commissioner')" style="padding:14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--brand-mid)';this.style.background='var(--brand-light)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='transparent'">
+          <div style="font-weight:600;color:var(--ink);margin-bottom:3px;font-size:13px">🏛 Commissioner — Ahmed Hassan</div>
+          <div style="font-size:11px;color:var(--ink3)">Full access: draft, review, approve, enact, revoke, delete policies and reports</div>
+          <div style="font-family:var(--font-mono);font-size:8px;color:var(--brand);margin-top:5px">PERMISSIONS: ALL · QUORUM VOTE: YES · REPORTS: FULL ACCESS</div>
+        </div>
+        <div class="role-option" onclick="switchRole('head')" style="padding:14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--amber-bd)';this.style.background='var(--amber-bg)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='transparent'">
+          <div style="font-weight:600;color:var(--ink);margin-bottom:3px;font-size:13px">📋 Department Head — Fatima Malik</div>
+          <div style="font-size:11px;color:var(--ink3)">Can advance workflow draft → review → approved, add comments, run AI analysis. Cannot enact or delete.</div>
+          <div style="font-family:var(--font-mono);font-size:8px;color:var(--amber);margin-top:5px">PERMISSIONS: REVIEW · QUORUM VOTE: YES · REPORTS: VIEW + GENERATE</div>
+        </div>
+        <div class="role-option" onclick="switchRole('analyst')" style="padding:14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--green-bd)';this.style.background='var(--green-bg)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='transparent'">
+          <div style="font-weight:600;color:var(--ink);margin-bottom:3px;font-size:13px">🔬 Analyst — Bilal Chaudhry</div>
+          <div style="font-size:11px;color:var(--ink3)">Read-only: view all policies, add comments, run AI simulations. No write access to policy status.</div>
+          <div style="font-family:var(--font-mono);font-size:8px;color:var(--green);margin-top:5px">PERMISSIONS: VIEW + COMMENT · QUORUM VOTE: NO · REPORTS: VIEW ONLY</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('role-modal')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- Policy Version History -->
+<div class="modal-overlay" id="version-modal">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <div><div class="modal-title">Policy Version History</div><div class="modal-sub">IMMUTABLE SNAPSHOT HISTORY — EACH STATUS CHANGE IS RECORDED</div></div>
+      <button class="modal-close" onclick="closeModal('version-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="version-modal-body" style="max-height:55vh;overflow-y:auto"></div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('version-modal')">Close</button></div>
+  </div>
+</div>
+
+<!-- Confirm Modal (replaces browser confirm()) -->
+<div class="modal-overlay confirm-modal" id="confirm-modal">
+  <div class="modal-card" style="max-width:380px">
+    <div class="modal-body" style="padding:28px 24px">
+      <div class="confirm-icon" id="confirm-icon">⚠</div>
+      <div class="confirm-title" id="confirm-title">Are you sure?</div>
+      <div class="confirm-msg" id="confirm-msg">This action cannot be undone.</div>
+      <div class="confirm-consequence" id="confirm-consequence" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('confirm-modal')">Cancel</button>
+      <button class="btn-danger" id="confirm-ok-btn" onclick="runConfirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="main.js"></script>
+<script src="app.js"></script> 
+
+<!-- Live KPI sync for reports page hint bar -->
+<script>
+setInterval(function(){
+  if(typeof liveKPI==='undefined') return;
+  var m={walk:Math.round(liveKPI.walk),aqi:Math.round(liveKPI.aqi),tc:Math.round(liveKPI.transit)+'%',af:Math.round(liveKPI.afford)+'%',ep:typeof enactedCount!=='undefined'?enactedCount:0};
+  Object.entries(m).forEach(function([k,v]){var e=document.getElementById('rg-'+k);if(e)e.textContent=v;});
+},2000);
+// Keyboard shortcuts
+document.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='Escape'){document.querySelectorAll('.modal-overlay.show').forEach(function(m){m.classList.remove('show')});closeDisasterPanel&&closeDisasterPanel();}
+  if(e.key==='1'&&e.altKey){showPage('simulation',document.querySelectorAll('.ntab')[0])}
+  if(e.key==='2'&&e.altKey){showPage('analytics',document.querySelectorAll('.ntab')[1])}
+  if(e.key==='3'&&e.altKey){showPage('scenarios',document.querySelectorAll('.ntab')[2])}
+  if(e.key==='4'&&e.altKey){showPage('reports',document.querySelectorAll('.ntab')[3])}
+});
+</script>
+</body>
+</html>
