@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CPRI Multi-Agent Urban Simulation Data Request",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "dataset_description": { "type": "string" },
+        "source_agency": { "type": "string" },
+        "date_created": { "type": "string", "format": "date" },
+        "last_updated": { "type": "string", "format": "date" },
+        "coordinate_reference_system": { "type": "string" },
+        "license": { "type": "string" }
+      },
+      "required": ["dataset_description", "source_agency", "date_created"]
+    },
+    "geographic_boundaries": {
+      "type": "object",
+      "properties": {
+        "city_boundary": { "type": "string", "format": "uri" },
+        "district_boundaries": { "type": "string", "format": "uri" },
+        "neighborhood_boundaries": { "type": "string", "format": "uri" },
+        "planning_areas": { "type": "string", "format": "uri" },
+        "parcels": { "type": "string", "format": "uri" },
+        "historical_versions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["city_boundary", "district_boundaries", "parcels"]
+    },
+    "land_use_facilities": {
+      "type": "object",
+      "properties": {
+        "land_use": { "type": "string", "format": "uri" },
+        "building_footprints": { "type": "string", "format": "uri" },
+        "facilities": { "type": "string", "format": "uri" },
+        "historical_land_use": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        },
+        "ownership": { "type": "string", "format": "uri" }
+      },
+      "required": ["land_use", "building_footprints", "facilities"]
+    },
+    "redevelopment_vacant_land": {
+      "type": "object",
+      "properties": {
+        "redevelopment_zones": { "type": "string", "format": "uri" },
+        "vacant_land": { "type": "string", "format": "uri" },
+        "brownfield_sites": { "type": "string", "format": "uri" },
+        "historical_redevelopment": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["redevelopment_zones", "vacant_land"]
+    },
+    "transportation_infrastructure": {
+      "type": "object",
+      "properties": {
+        "roads": { "type": "string", "format": "uri" },
+        "sidewalks": { "type": "string", "format": "uri" },
+        "bike_lanes": { "type": "string", "format": "uri" },
+        "transit_routes": { "type": "string", "format": "uri" },
+        "intersection_controls": { "type": "string", "format": "uri" },
+        "historical_transport_changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["roads", "transit_routes"]
+    },
+    "socioeconomic_demographic": {
+      "type": "object",
+      "properties": {
+        "population_density": { "type": "string", "format": "uri" },
+        "household_income": { "type": "string", "format": "uri" },
+        "education_levels": { "type": "string", "format": "uri" },
+        "employment": { "type": "string", "format": "uri" },
+        "vehicle_ownership": { "type": "string", "format": "uri" },
+        "housing_tenure": { "type": "string", "format": "uri" },
+        "age_distribution": { "type": "string", "format": "uri" },
+        "household_structure": { "type": "string", "format": "uri" },
+        "mobility_limitations": { "type": "string", "format": "uri" },
+        "digital_access": { "type": "string", "format": "uri" },
+        "historical_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["population_density", "household_income"]
+    },
+    "regulations_planning": {
+      "type": "object",
+      "properties": {
+        "zoning_regulations": { "type": "string", "format": "uri" },
+        "comprehensive_plan": { "type": "string", "format": "uri" },
+        "building_codes": { "type": "string", "format": "uri" },
+        "parking_requirements": { "type": "string", "format": "uri" },
+        "height_density_limits": { "type": "string", "format": "uri" },
+        "environmental_regulations": { "type": "string", "format": "uri" },
+        "special_district_rules": { "type": "string", "format": "uri" },
+        "historic_preservation_rules": { "type": "string", "format": "uri" },
+        "historical_updates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["zoning_regulations", "comprehensive_plan"]
+    },
+    "mandatory_requirements": {
+      "type": "object",
+      "properties": {
+        "min_facilities": { "type": "string", "format": "uri" },
+        "per_capita_standards": { "type": "string", "format": "uri" },
+        "density_limits": { "type": "string", "format": "uri" },
+        "accessibility_thresholds": { "type": "string", "format": "uri" },
+        "historical_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      }
+    },
+    "implementation_constraints": {
+      "type": "object",
+      "properties": {
+        "ownership_records": { "type": "string", "format": "uri" },
+        "construction_costs": { "type": "string", "format": "uri" },
+        "utility_capacity": { "type": "string", "format": "uri" },
+        "capital_improvement_plan": { "type": "string", "format": "uri" },
+        "development_restrictions": { "type": "string", "format": "uri" },
+        "historical_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      }
+    },
+    "mobility_data": {
+      "type": "object",
+      "properties": {
+        "transit_ridership": { "type": "string", "format": "uri" },
+        "shared_mobility": { "type": "string", "format": "uri" },
+        "on_demand_shuttles": { "type": "string", "format": "uri" },
+        "origin_destination": { "type": "string", "format": "uri" },
+        "real_time_transit": { "type": "string", "format": "uri" },
+        "historical_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["transit_ridership", "shared_mobility"]
+    },
+    "traffic_safety_data": {
+      "type": "object",
+      "properties": {
+        "traffic_volume": { "type": "string", "format": "uri" },
+        "travel_speed": { "type": "string", "format": "uri" },
+        "crash_incidents": { "type": "string", "format": "uri" },
+        "intersection_performance": { "type": "string", "format": "uri" },
+        "historical_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "integer", "minimum": 2020, "maximum": 2023 },
+              "file_uri": { "type": "string", "format": "uri" }
+            },
+            "required": ["year", "file_uri"]
+          }
+        }
+      },
+      "required": ["traffic_volume", "crash_incidents"]
+    }
+  },
+  "required": ["metadata", "geographic_boundaries", "land_use_facilities", "redevelopment_vacant_land",
+               "transportation_infrastructure", "socioeconomic_demographic", "regulations_planning",
+               "mandatory_requirements", "implementation_constraints", "mobility_data", "traffic_safety_data"]
+}
